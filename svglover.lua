@@ -10,9 +10,18 @@ svglover
 --  markup includes resolution detection
 local function svglover_load(svgfile)
 	-- validate input
+	--  file exists?
+	--  file is a roughly sane size?
+
 	-- initialize return structure
 	local svg = {height=0,height=0,drawcommands=''}
+
 	-- process input
+	--  - first we read the whole file in to a string
+	--  - insert newline after all tags
+	--  - extract height and width
+	--  - finally, loop over lines, appending to svg.drawcommands
+
 	-- return
 	return svg
 end
