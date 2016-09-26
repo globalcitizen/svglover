@@ -118,7 +118,7 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges)
 
 	-- draw
 	--print(table.show(svg))
-	return table.insert(svglover_onscreen_svgs,dc(svg))
+	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
 end
 
 -- actually draw any svgs that are scheduled to be on screen
@@ -127,12 +127,12 @@ function svglover_draw()
 	for i,svg in ipairs(svglover_onscreen_svgs) do
 		-- push graphics settings
 		love.graphics.push()
-		-- clip to the target area
+		-- clip to the target region
 	        love.graphics.setScissor(svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
-	        -- draw in the target area
-	        love.graphics.translate(svg.region_origin_x+svg.cx,svg.region_origin_y+svg.cy)
-	        -- scale to the target area
-	        love.graphics.scale(svg.sfx,svg.sfy)
+	        -- draw in the target region
+	        love.graphics.translate(svg.region_origin_x+svg.cx, svg.region_origin_y+svg.cy)
+	        -- scale to the target region
+	        love.graphics.scale(svg.sfx, svg.sfy)
 		-- draw
 		assert (loadstring (svg.drawcommands)) ()
 	        -- disable clipping
@@ -146,15 +146,15 @@ function svglover_draw()
 end
 
 -- deep copy
-function dc(orig)
+function __svglover_dc(orig)
     local orig_type = type(orig)
     local copy
     if orig_type == 'table' then
         copy = {}
         for orig_key, orig_value in next, orig, nil do
-            copy[dc(orig_key)] = dc(orig_value)
+            copy[__svglover_dc(orig_key)] = __svglover_dc(orig_value)
         end
-        setmetatable(copy, dc(getmetatable(orig)))
+        setmetatable(copy, __svglover_dc(getmetatable(orig)))
     else
         copy = orig
     end
