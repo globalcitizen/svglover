@@ -1,6 +1,8 @@
 # svglover
 
-A library to import and display simple SVGs in LÖVE.
+A library to import and display simple SVGs in [LÖVE](http://love2d.org/).
+
+Note that because it is specifically written for LÖVE, it is probably not useful for other [Lua](http://www.lua.org/) environments.
 
 The latest code can always be found at [Github](https://github.com/globalcitizen/svglover).
 
