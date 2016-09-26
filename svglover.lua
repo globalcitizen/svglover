@@ -50,24 +50,23 @@ function svglover_load(svgfile)
 		-- parse it
   		svg.drawcommands = svg.drawcommands .. "\n" .. __svglover_lineparse(line)
 	end
-	-- remove duplicate commands
+	-- remove duplicate newlines
 	svg.drawcommands = string.gsub(svg.drawcommands,"\n+","\n")
 	svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
 	svg.drawcommands = string.gsub(svg.drawcommands,"\n$","")
-	print(table.show(svg))
-	--print(file_contents)
-	os.exit()
 
 	-- return
 	return svg
 end
 
 -- place a loaded svg in a given screen region
-function svglover_display(svg,x,y,region_width,region_height,leave_no_edges)
+function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width)
 	-- handle arguments
 	region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
 	region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
 	leave_no_edges = leave_no_edges or true
+	border_color = border_color or nil
+	border_width = border_width or 1
 	-- validate arguments
 	if svg.width == nil or svg.height == nil or svg.drawcommands == nil then
 		print("FATAL: passed invalid svg object")
@@ -80,6 +79,16 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges)
 		os.exit()
 	elseif leave_no_edges ~= false and leave_no_edges ~= true then
 		print("FATAL: passed invalid leave_no_edges")
+		os.exit()
+	elseif border_color ~= nil then
+		for element in pairs(border_color) do
+			if element < 0 or element > 255 or element == nil then
+				print("FATAL: passed invalid border_color")
+				os.exit()
+			end
+		end
+	elseif border_width < 1 or border_width > 10000 then
+		print("FATAL: passed invalid border_width")
 		os.exit()
 	end
 
@@ -119,12 +128,14 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges)
 	svg['sfy'] = scale_factor
 	svg['region_width'] = region_width
 	svg['region_height'] = region_height
+	svg['border_color'] = border_color
+	svg['border_width'] = border_width
 
 	-- debug
-	svg.drawcommands = 'love.graphics.setColor(255, 255, 255)' .. "\n" .. 'love.graphics.rectangle("fill", 0, 0, ' .. svg.width .. ', ' .. svg.height .. ')'
+	--svg.drawcommands = 'love.graphics.setColor(255, 255, 255)' .. "\n" .. 'love.graphics.rectangle("fill", 0, 0, ' .. svg.width .. ', ' .. svg.height .. ')'
 
 	-- draw
-	--print(table.show(svg))
+	print(table.show(svg))
 	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
 end
 
@@ -132,6 +143,13 @@ end
 function svglover_draw()
 	-- loop through on-screen SVGs
 	for i,svg in ipairs(svglover_onscreen_svgs) do
+		-- bounding box
+		if svg.border_color ~= nil then
+			love.graphics.setColor(svg.border_color)
+			love.graphics.rectangle('fill',svg.region_origin_x-svg.border_width, svg.region_origin_y-svg.border_width, svg.region_width+svg.border_width*2, svg.region_height+svg.border_width*2)
+			love.graphics.setColor(0,0,0,255)
+			love.graphics.rectangle('fill',svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
+		end
 		-- push graphics settings
 		love.graphics.push()
 		-- clip to the target region
@@ -146,9 +164,6 @@ function svglover_draw()
 	        love.graphics.setScissor()
 		-- reset graphics
 		love.graphics.pop()
-		-- bounding box
-		love.graphics.setColor(255,0,0,255)
-		love.graphics.rectangle('line',svg.region_origin_x-1, svg.region_origin_y-1, svg.region_width+2, svg.region_height+2)
 	end
 end
 
