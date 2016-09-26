@@ -8,7 +8,7 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## Status
 
-The library is not yet functional.
+The library is currently functional only for polygons.
 
 ## Usage
 
