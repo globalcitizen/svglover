@@ -8,7 +8,9 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## Status
 
-The library is currently functional only for polygons.
+The library is currently functional only for polygons. Here is an example screenshot.
+
+![Polygon example](https://raw.githubusercontent.com/globalcitizen/svglover/master/screenshot-polygon.jpg)
 
 ## Usage
 
