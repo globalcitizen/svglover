@@ -135,7 +135,7 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	--svg.drawcommands = 'love.graphics.setColor(255, 255, 255)' .. "\n" .. 'love.graphics.rectangle("fill", 0, 0, ' .. svg.width .. ', ' .. svg.height .. ')'
 
 	-- draw
-	print(table.show(svg))
+	--print(table.show(svg))
 	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
 end
 
@@ -211,12 +211,44 @@ function __svglover_lineparse(line)
 	elseif string.match(line,'<g ') then
                 --  SVG example:
                 --    <g transform="translate(226 107) rotate(307) scale(3 11)">
+		--    <g transform="scale(4.000000) translate(0.5 0.5)">
                 --  lua example:
                 --    love.graphics.push()
                 --    love.graphics.translate( dx, dy )
                 --    love.graphics.rotate( angle )
                 --    love.graphics.scale( sx, sy )
-		return 'love.graphics.push()'
+		local result = "love.graphics.push()\n"
+                -- extract the goodies
+                --  translation offset
+                offset_x,offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
+                --  rotation angle
+                angle = string.match(line,"[\" ]rotate\\((.-)\\)")
+		if angle ~= nil then
+                	angle = angle * 3.14159/180	-- convert degrees to radians
+		end
+                --  scale
+                scale_string = string.match(line,"scale.([^)]+)")
+		scale_x = 0
+		scale_y = 0
+		scale_x,scale_y = string.match(scale_string,"(\\-?[0-9.]+) (\\-?[0-9.]+)")
+		if scale_x == nil then
+			scale_x = scale_string
+			scale_y = nil
+		end
+
+                -- output
+		if offset_x ~= nil and offset_y ~= nil then
+                	result = result .. "love.graphics.translate(" .. offset_x .. "," .. offset_y .. ")\n"
+		end
+                if angle ~= nil then
+                        result = result .. "love.graphics.rotate(" .. angle .. ")\n"
+                end
+                if scale_y ~= nil then
+                        result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n";
+                elseif scale_x ~= nil then
+                        result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n";
+                end
+		return result
 	else
 		print("LINE '" .. line .. "' is unparseable!")
 		os.exit()
