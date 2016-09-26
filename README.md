@@ -12,22 +12,28 @@ The library is not yet functional.
 
 ## Usage
 
-You should normally load your SVGs straight away in the `love.load()` function to prevent duplicate reads, as follows:
+You should normally load your SVGs straight away in the `love.load()` function to prevent duplicate reads. The syntax for doing this is as follows:
 
 ```
-pic = svglover_load('some.svg')
+vector_image = svglover_load('some.svg')
 ```
 
-You then specify where you want them displayed using `svglover_display(image,topleft_x,topleft_y,width,height,fill_region,border_color,border_width)` where `fill_region`, `border_color` and `border_width` are optional.
+You then specify where you want them displayed using:
+
+```
+svglover_display(vector_image,topleft_x,topleft_y,width,height,fill_region,border_color,border_width)
+```
+
+... where `fill_region`, `border_color` and `border_width` are optional.
 
 Finally, you should add the `svglover_draw()` call to the end of your `love.draw()` function.
 
-A complete example is therefore as follows.
+A complete example:
 
 ```
 function love.load()
-        pic = svglover_load('some.svg')
-        svglover_display(pic,100,100,100,100,true,{255,0,0,255},1)
+        image = svglover_load('some.svg')
+        svglover_display(image,100,100,100,100,true,{255,0,0,255},1)
 end
 
 function love.draw()
