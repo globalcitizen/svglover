@@ -45,11 +45,18 @@ function svglover_load(svgfile)
 	--  - extract height and width
 	svg.width = string.match(file_contents,"<svg [^>]+width=\"(%d+)\"")
 	svg.height = string.match(file_contents,"<svg [^>]+height=\"(%d+)\"")
-	--print("detected width:  " .. svg.width)
-	--print("detected height: " .. svg.height)
 	--  - finally, loop over lines, appending to svg.drawcommands
+	for line in string.gmatch(file_contents, "[^\n]+") do
+		-- parse it
+  		svg.drawcommands = svg.drawcommands .. "\n" .. __svglover_lineparse(line)
+	end
+	-- remove duplicate commands
+	svg.drawcommands = string.gsub(svg.drawcommands,"\n+","\n")
+	svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
+	svg.drawcommands = string.gsub(svg.drawcommands,"\n$","")
+	print(table.show(svg))
 	--print(file_contents)
-	--os.exit()
+	os.exit()
 
 	-- return
 	return svg
@@ -143,6 +150,40 @@ function svglover_draw()
 		love.graphics.setColor(255,0,0,255)
 		love.graphics.rectangle('line',svg.region_origin_x-1, svg.region_origin_y-1, svg.region_width+2, svg.region_height+2)
 	end
+end
+
+-- parse an input line from an SVG, returning the equivalent LOVE code
+function __svglover_lineparse(line)
+	-- rectangle
+	if string.match(line,'<rect ') then
+	-- ellipse (eg. circle)
+	elseif string.match(line,'<ellipse ') then
+	-- polygon (eg. triangle)
+	elseif string.match(line,'<polygon ') then
+	-- start svg
+	elseif string.match(line,'<svg') then
+		-- ignore
+	-- end svg
+	elseif string.match(line,'</svg') then
+		-- ignore
+	-- end group
+	elseif string.match(line,'</g>') then
+		return 'love.graphics.pop()'
+	-- start group
+	elseif string.match(line,'<g ') then
+                --  SVG example:
+                --    <g transform="translate(226 107) rotate(307) scale(3 11)">
+                --  lua example:
+                --    love.graphics.push()
+                --    love.graphics.translate( dx, dy )
+                --    love.graphics.rotate( angle )
+                --    love.graphics.scale( sx, sy )
+		return 'love.graphics.push()'
+	else
+		print("LINE '" .. line .. "' is unparseable!")
+		os.exit()
+	end
+	return ''
 end
 
 -- deep copy
