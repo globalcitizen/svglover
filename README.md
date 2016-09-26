@@ -21,10 +21,10 @@ vector_image = svglover_load('some.svg')
 You then specify where you want them displayed using:
 
 ```
-svglover_display(vector_image,topleft_x,topleft_y,width,height,fill_region,border_color,border_width)
+svglover_display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width)
 ```
 
-... where `fill_region`, `border_color` and `border_width` are optional.
+... where `completely_fill_region`, `border_color` and `border_width` are optional.
 
 Finally, you should add the `svglover_draw()` call to the end of your `love.draw()` function.
 
