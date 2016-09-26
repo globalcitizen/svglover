@@ -32,8 +32,8 @@ A complete example:
 
 ```
 function love.load()
-        image = svglover_load('some.svg')
-        svglover_display(image,100,100,100,100,true,{255,0,0,255},1)
+        vector_image = svglover_load('some.svg')
+        svglover_display(vector_image,100,100,100,100,true,{255,0,0,255},1)
 end
 
 function love.draw()
