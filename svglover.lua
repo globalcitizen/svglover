@@ -175,11 +175,34 @@ function __svglover_lineparse(line)
 	elseif string.match(line,'<ellipse ') then
 	-- polygon (eg. triangle)
 	elseif string.match(line,'<polygon ') then
-	-- start svg
-	elseif string.match(line,'<svg') then
-		-- ignore
-	-- end svg
-	elseif string.match(line,'</svg') then
+                -- SVG example:
+                --   <polygon fill="--6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+                -- lua example:
+                --   love.graphics.setColor( red, green, blue, alpha )
+                --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+
+                --  fill (red/green/blue)
+                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+                red = tonumber(red,16)
+                green = tonumber(green,16)
+                blue = tonumber(blue,16)
+
+                --  fill-opacity (alpha)
+                alpha = string.match(line,"opacity=\"(.-)\"")
+                alpha = math.floor(255*tonumber(alpha,10))
+
+                --  points (vertices)
+                vertices = string.match(line," points=\"([^\"]+)\"")
+                vertices = string.gsub(vertices,' ',',')
+
+                -- output
+                --   love.graphics.setColor( red, green, blue, alpha )
+		local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+                --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+                result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
+		return result
+	-- start or end svg
+	elseif string.match(line,'</?svg') then
 		-- ignore
 	-- end group
 	elseif string.match(line,'</g>') then
