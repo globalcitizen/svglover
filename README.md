@@ -4,6 +4,8 @@ A library to import and display simple SVGs in [LÖVE](http://love2d.org/).
 
 Note that because it is specifically written for LÖVE, it is probably not useful for other [Lua](http://www.lua.org/) environments.
 
+Also note that I basically only test it with the output of [primitive](https://github.com/fogleman/primitive), which generates simple SVGs automatically from bitmap/raster images. (This could be viewed as a form of compression)
+
 The latest code can always be found at [Github](https://github.com/globalcitizen/svglover).
 
 ## News
@@ -22,6 +24,13 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 The library is currently functional only for polygons, elipses (and circles), and rectangles. All forms of translation, rotation and scaling are supported. Groups are supported. Transparency is supported. It does not support gradient fills of any kind, `<path>` ([see issue #1](https://github.com/globalcitizen/svglover/issues/1)) or view boxes. Here is an example screenshot.
 
 ![Polygon, rectangle, circle, ellipse example](https://raw.githubusercontent.com/globalcitizen/svglover/master/screenshot-polygon.jpg)
+
+## Why?
+
+* SVGs are scalable, which is useful in today's era of vastly differing device screen resolutions
+* SVGs are small
+* Vector images look cool
+* With a little more coding you can probably animate their bits
 
 ## Usage
 
