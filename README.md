@@ -6,11 +6,22 @@ Note that because it is specifically written for LÖVE, it is probably not usefu
 
 The latest code can always be found at [Github](https://github.com/globalcitizen/svglover).
 
+## News
+
+
+* 2016-09-27: [v1.0.1](https://github.com/globalcitizen/svglover/releases/tag/v1.0.1) released!
+  - Add `<circle>` support (when circles are not drawn as `<ellipse>`)
+  - Slightly hardier parsing
+  - Improved documentation
+
+* 2016-09-27: [v1.0.0](https://github.com/globalcitizen/svglover/releases/tag/v1.0.0) released!
+  - Basic functionality
+
 ## Status
 
-The library is currently functional only for polygons, elipses (and circles), and rectangles. All forms of translation, rotation and scaling are supported. Groups are supported. Transparency is supported. Here is an example screenshot.
+The library is currently functional only for polygons, elipses (and circles), and rectangles. All forms of translation, rotation and scaling are supported. Groups are supported. Transparency is supported. It does not support gradient fills of any kind, `<path>` ([see issue #1](https://github.com/globalcitizen/svglover/issues/1)) or view boxes. Here is an example screenshot.
 
-![Polygon example](https://raw.githubusercontent.com/globalcitizen/svglover/master/screenshot-polygon.jpg)
+![Polygon, rectangle, circle, ellipse example](https://raw.githubusercontent.com/globalcitizen/svglover/master/screenshot-polygon.jpg)
 
 ## Usage
 

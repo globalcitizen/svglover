@@ -37,14 +37,16 @@ function svglover_load(svgfile)
 			file_contents = file_contents .. line
 		end
   	end
+	--  - remove all newlines
+	file_contents = string.gsub(file_contents,"\n","")
 	--  - insert newline after all tags
 	file_contents = string.gsub(file_contents,">",">\n")
 	--  - flush blank lines
 	file_contents = string.gsub(file_contents,"\n+","\n")		-- remove multiple newlines
 	file_contents = string.gsub(file_contents,"\n$","")		-- remove trailing newline
 	--  - extract height and width
-	svg.width = string.match(file_contents,"<svg [^>]+width=\"(%d+)\"")
-	svg.height = string.match(file_contents,"<svg [^>]+height=\"(%d+)\"")
+	svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)")
+	svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)")
 	--  - finally, loop over lines, appending to svg.drawcommands
 	for line in string.gmatch(file_contents, "[^\n]+") do
 		-- parse it
@@ -202,10 +204,11 @@ function __svglover_lineparse(line)
                 result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
 		return result
 
-	-- ellipse (eg. circle)
-	elseif string.match(line,'<ellipse ') then
+	-- ellipse or circle
+	elseif string.match(line,'<ellipse ') or string.match(line,'<circle ') then
                 -- SVG example:
                 --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
+		--   <circle cx="114.279" cy="10.335" r="10"/>
                 -- lua example:
                 --   love.graphics.setColor( red, green, blue, alpha )
                 --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
@@ -217,24 +220,39 @@ function __svglover_lineparse(line)
                 --  cy (center_y)
                 center_y = string.match(line," cy=\"([^\"]+)\"")
 
-                --  rx (radius_x)
-                radius_x = string.match(line," rx=\"([^\"]+)\"")
+                --  r (radius, for a circle)
+                radius = string.match(line," r=\"([^\"]+)\"")
 
-                --  ry (radius_y)
-                radius_y = string.match(line," ry=\"([^\"]+)\"")
+		if radius ~= nil then
+			radius_x = radius
+			radius_y = radius
+		else
+                	--  rx (radius_x, for an ellipse)
+                	radius_x = string.match(line," rx=\"([^\"]+)\"")
+
+                	--  ry (radius_y, for an ellipse)
+                	radius_y = string.match(line," ry=\"([^\"]+)\"")
+		end
 
                 --  fill (red/green/blue)
                 red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-                red = tonumber(red,16)
-                green = tonumber(green,16)
-                blue = tonumber(blue,16)
+		if red ~= nil then
+                	red = tonumber(red,16)
+                	green = tonumber(green,16)
+                	blue = tonumber(blue,16)
+		end
 
                 --  fill-opacity (alpha)
                 alpha = string.match(line,"opacity=\"(.-)\"")
-                alpha = math.floor(255*tonumber(alpha,10))
+		if alpha ~= nil then
+                	alpha = math.floor(255*tonumber(alpha,10))
+		end
 
                 -- output
-                local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
+                local result = ''
+		if red ~= nil then
+			result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
+		end
                 result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n";
 		return result
 
@@ -267,8 +285,12 @@ function __svglover_lineparse(line)
                 result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
 		return result
 
-	-- start or end svg
-	elseif string.match(line,'</?svg') then
+	-- start or end svg etc.
+	elseif  string.match(line,'</?svg') or 
+		string.match(line,'<.xml') or 
+		string.match(line,'<!--') or 
+		string.match(line,'</?title') or
+		string.match(line,'<!DOCTYPE') then
 		-- ignore
 
 	-- end group
@@ -276,7 +298,7 @@ function __svglover_lineparse(line)
 		return 'love.graphics.pop()'
 
 	-- start group
-	elseif string.match(line,'<g ') then
+	elseif string.match(line,'<g[> ]') then
                 --  SVG example:
                 --    <g transform="translate(226 107) rotate(307) scale(3 11)">
 		--    <g transform="scale(4.000000) translate(0.5 0.5)">
