@@ -8,7 +8,7 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## Status
 
-The library is currently functional only for polygons. Here is an example screenshot.
+The library is currently functional only for polygons, elipses (and circles), and rectangles. All forms of translation, rotation and scaling are supported. Groups are supported. Transparency is supported. Here is an example screenshot.
 
 ![Polygon example](https://raw.githubusercontent.com/globalcitizen/svglover/master/screenshot-polygon.jpg)
 
@@ -43,6 +43,10 @@ function love.draw()
         svglover_draw()
 end
 ```
+
+## Development
+
+Feel free to hack, fork, create issues, or send pull requests. It should be possible and not too difficult to add advanced features like text and post-draw handles for dynamic manipuplation of the resulting images to support things like transitions.
 
 ## Motivation
 

@@ -50,6 +50,7 @@ function svglover_load(svgfile)
 		-- parse it
   		svg.drawcommands = svg.drawcommands .. "\n" .. __svglover_lineparse(line)
 	end
+
 	-- remove duplicate newlines
 	svg.drawcommands = string.gsub(svg.drawcommands,"\n+","\n")
 	svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
@@ -102,14 +103,6 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
         --  if we use the maximum of the two axes, we lose a bit of the image
         local scale_factor = math.max(scale_factor_x,scale_factor_y)
 
---[[
-        print("scale_factor = " .. scale_factor)
-        print("desired_x    = " .. region_width)
-        print("desired_y    = " .. region_height)
-        print("image_size_x * scale_factor = " .. (svg.width*scale_factor))
-        print("image_size_y * scale_factor = " .. (svg.height*scale_factor))
---]]
-
 	--  - centering offsets
 	local centering_offset_x = 0
 	local centering_offset_y = 0
@@ -131,11 +124,7 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	svg['border_color'] = border_color
 	svg['border_width'] = border_width
 
-	-- debug
-	--svg.drawcommands = 'love.graphics.setColor(255, 255, 255)' .. "\n" .. 'love.graphics.rectangle("fill", 0, 0, ' .. svg.width .. ', ' .. svg.height .. ')'
-
 	-- draw
-	--print(table.show(svg))
 	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
 end
 
@@ -167,12 +156,88 @@ function svglover_draw()
 	end
 end
 
+
 -- parse an input line from an SVG, returning the equivalent LOVE code
 function __svglover_lineparse(line)
+
 	-- rectangle
 	if string.match(line,'<rect ') then
+                -- SVG example:
+                --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
+		--   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" /></g>
+                -- lua example:
+                --   love.graphics.setColor( red, green, blue, alpha )
+                --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
+
+                -- now, we get the parts
+
+                --  x (x_offset)
+                x_offset = string.match(line," x=\"([^\"]+)\"")
+
+                --  y (y_offset)
+                y_offset = string.match(line," y=\"([^\"]+)\"")
+
+                --  width (width)
+                width = string.match(line," width=\"([^\"]+)\"")
+
+                -- height (height)
+                height = string.match(line," height=\"([^\"]+)\"")
+
+                --  fill (red/green/blue)
+                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+                red = tonumber(red,16)
+                green = tonumber(green,16)
+                blue = tonumber(blue,16)
+
+                --  fill-opacity (alpha)
+                alpha = string.match(line,"opacity=\"([^\"]+)\"")
+		if alpha == nil then
+			alpha = 255
+		else
+                	alpha = math.floor(255*tonumber(alpha,10))
+		end
+
+                -- output
+		result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+                result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+		return result
+
 	-- ellipse (eg. circle)
 	elseif string.match(line,'<ellipse ') then
+                -- SVG example:
+                --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
+                -- lua example:
+                --   love.graphics.setColor( red, green, blue, alpha )
+                --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
+
+		-- get parts
+                --  cx (center_x)
+                center_x = string.match(line," cx=\"([^\"]+)\"")
+
+                --  cy (center_y)
+                center_y = string.match(line," cy=\"([^\"]+)\"")
+
+                --  rx (radius_x)
+                radius_x = string.match(line," rx=\"([^\"]+)\"")
+
+                --  ry (radius_y)
+                radius_y = string.match(line," ry=\"([^\"]+)\"")
+
+                --  fill (red/green/blue)
+                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+                red = tonumber(red,16)
+                green = tonumber(green,16)
+                blue = tonumber(blue,16)
+
+                --  fill-opacity (alpha)
+                alpha = string.match(line,"opacity=\"(.-)\"")
+                alpha = math.floor(255*tonumber(alpha,10))
+
+                -- output
+                local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
+                result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n";
+		return result
+
 	-- polygon (eg. triangle)
 	elseif string.match(line,'<polygon ') then
                 -- SVG example:
@@ -201,12 +266,15 @@ function __svglover_lineparse(line)
                 --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
                 result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
 		return result
+
 	-- start or end svg
 	elseif string.match(line,'</?svg') then
 		-- ignore
+
 	-- end group
 	elseif string.match(line,'</g>') then
 		return 'love.graphics.pop()'
+
 	-- start group
 	elseif string.match(line,'<g ') then
                 --  SVG example:
@@ -222,18 +290,21 @@ function __svglover_lineparse(line)
                 --  translation offset
                 offset_x,offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
                 --  rotation angle
-                angle = string.match(line,"[\" ]rotate\\((.-)\\)")
+                angle = string.match(line,"rotate.([^)]+)")
 		if angle ~= nil then
                 	angle = angle * 3.14159/180	-- convert degrees to radians
 		end
                 --  scale
+		--   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
+		scale_x = 1
+		scale_y = 1
                 scale_string = string.match(line,"scale.([^)]+)")
-		scale_x = 0
-		scale_y = 0
-		scale_x,scale_y = string.match(scale_string,"(\\-?[0-9.]+) (\\-?[0-9.]+)")
-		if scale_x == nil then
-			scale_x = scale_string
-			scale_y = nil
+		if scale_string ~= nil then
+			scale_x,scale_y = string.match(scale_string,"([^ ]+) ([^ ]+)")
+			if scale_x == nil then
+				scale_x = scale_string
+				scale_y = nil
+			end
 		end
 
                 -- output
@@ -250,6 +321,7 @@ function __svglover_lineparse(line)
                 end
 		return result
 	else
+		-- display issues so that those motivated to hack can do so ;)
 		print("LINE '" .. line .. "' is unparseable!")
 		os.exit()
 	end
