@@ -57,7 +57,7 @@ end
 
 ## Development
 
-Feel free to hack, fork, create issues, or send pull requests. It should be possible and not too difficult to add advanced features like text and post-draw handles for dynamic manipuplation of the resulting images to support things like transitions.
+Feel free to hack, fork, create issues, or send pull requests. It should be possible and not too difficult to add advanced features like text and post-draw handles for dynamic manipuplation of the resulting images to support things like transitions. However, I am personally happy with the existing functionality and will not be adding features in the near future.
 
 ## Motivation
 
