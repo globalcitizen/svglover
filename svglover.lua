@@ -11,20 +11,18 @@ svglover_onscreen_svgs = {}
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
 function svglover_load(svgfile)
-	-- validate input
-	--  file exists?
-	local fh = io.open(svgfile, "rb")
-	if not fh then
-		print("FATAL: file does not exist: '" .. svgfile .. "'")
-		os.exit()
-	end
-	--  file is a roughly sane size?
-	local size = fh:seek("end")
-      	fh:seek("set", current)
-	if size == nil or size < 10 or size > 500000 then
-		print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
-		os.exit()
-	end
+        -- validate input
+        --  file exists?
+        if not love.filesystem.exists(svgfile) then
+                print("FATAL: file does not exist: '" .. svgfile .. "'")
+                os.exit()
+        end
+        --  file is a roughly sane size?
+        local size = love.filesystem.getSize(svgfile)
+        if size == nil or size < 10 or size > 500000 then
+                print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
+                os.exit()
+        end
 
 	-- initialize return structure
 	local svg = {height=0,height=0,drawcommands=''}

@@ -10,6 +10,9 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## News
 
+* 2016-10-02: [v1.0.4](https://github.com/globalcitizen/svglover/releases/tag/v1.0.4) released!
+  - Fix compatibility issue by moving from basic Lua IO functions to 100% Love filesystem functions
+
 * 2016-10-02: [v1.0.3](https://github.com/globalcitizen/svglover/releases/tag/v1.0.3) released!
   - Allow automatic / transparent loading of gzip compressed SVG files
   - Add zoom feature
