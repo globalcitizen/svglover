@@ -67,7 +67,9 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	-- handle arguments
 	region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
 	region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
-	leave_no_edges = leave_no_edges or true
+	if leave_no_edges == nil then
+		leave_no_edges = true
+	end
 	border_color = border_color or nil
 	border_width = border_width or 1
 	-- validate arguments
@@ -103,7 +105,12 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
         --  - select final scale factor
         --  if we use the minimum of the two axes, we get a blank edge
         --  if we use the maximum of the two axes, we lose a bit of the image
-        local scale_factor = math.max(scale_factor_x,scale_factor_y)
+	local scale_factor = 1
+	if leave_no_edges == true then 
+        	scale_factor = math.max(scale_factor_x,scale_factor_y)
+	else
+        	scale_factor = math.min(scale_factor_x,scale_factor_y)
+	end
 
 	--  - centering offsets
 	local centering_offset_x = 0

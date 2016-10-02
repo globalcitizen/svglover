@@ -10,6 +10,8 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## News
 
+* 2016-10-02: [v1.0.2](https://github.com/globalcitizen/svglover/releases/tag/v1.0.2) released!
+  - Fix Lua logic error that was stopping fill-related scaling from working properly
 
 * 2016-09-27: [v1.0.1](https://github.com/globalcitizen/svglover/releases/tag/v1.0.1) released!
   - Add `<circle>` support (when circles are not drawn as `<ellipse>`)
