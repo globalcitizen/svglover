@@ -10,6 +10,10 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## News
 
+* 2016-10-02: [v1.0.3](https://github.com/globalcitizen/svglover/releases/tag/v1.0.3) released!
+  - Allow automatic / transparent loading of gzip compressed SVG files
+  - Add zoom feature
+
 * 2016-10-02: [v1.0.2](https://github.com/globalcitizen/svglover/releases/tag/v1.0.2) released!
   - Fix Lua logic error that was stopping fill-related scaling from working properly
 
@@ -45,10 +49,10 @@ vector_image = svglover_load('some.svg')
 You then specify where you want them displayed using:
 
 ```
-svglover_display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width)
+svglover_display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width,zoom)
 ```
 
-... where `completely_fill_region`, `border_color` and `border_width` are optional.
+... where `completely_fill_region`, `border_color`, `border_width` and `zoom` are optional.
 
 Finally, you should add the `svglover_draw()` call to the end of your `love.draw()` function.
 
@@ -57,7 +61,7 @@ A complete example:
 ```
 function love.load()
         vector_image = svglover_load('some.svg')
-        svglover_display(vector_image,100,100,100,100,true,{255,0,0,255},1)
+        svglover_display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
 end
 
 function love.draw()

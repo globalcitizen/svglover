@@ -13,7 +13,7 @@ svglover_onscreen_svgs = {}
 function svglover_load(svgfile)
 	-- validate input
 	--  file exists?
-	local fh = io.open(svgfile, "r")
+	local fh = io.open(svgfile, "rb")
 	if not fh then
 		print("FATAL: file does not exist: '" .. svgfile .. "'")
 		os.exit()
@@ -31,12 +31,12 @@ function svglover_load(svgfile)
 
 	-- process input
 	--  - first we read the whole file in to a string
-	local file_contents=''
-	for line in love.filesystem.lines(svgfile) do
-        	if not (line==nil) then
-			file_contents = file_contents .. line
-		end
-  	end
+	file_contents, _ = love.filesystem.read(svgfile)
+	--  - decompress if appropriate
+	magic = love.filesystem.read(svgfile,2)
+	if hex_dump(magic) == '1f 8b' then
+		file_contents = love.math.decompress(file_contents,'zlib')
+	end
 	--  - remove all newlines
 	file_contents = string.gsub(file_contents,"\n","")
 	--  - insert newline after all tags
@@ -63,7 +63,7 @@ function svglover_load(svgfile)
 end
 
 -- place a loaded svg in a given screen region
-function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width)
+function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
 	-- handle arguments
 	region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
 	region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
@@ -72,6 +72,7 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	end
 	border_color = border_color or nil
 	border_width = border_width or 1
+	zoom = zoom or 1
 	-- validate arguments
 	if svg.width == nil or svg.height == nil or svg.drawcommands == nil then
 		print("FATAL: passed invalid svg object")
@@ -95,6 +96,9 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	elseif border_width < 1 or border_width > 10000 then
 		print("FATAL: passed invalid border_width")
 		os.exit()
+	elseif zoom <= 0 or zoom > 10000 then
+		print("FATAL: passed invalid zoom")
+		os.exit()
 	end
 
 	-- calculate drawing parameters
@@ -112,13 +116,16 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
         	scale_factor = math.min(scale_factor_x,scale_factor_y)
 	end
 
+	-- apply zoom
+	scale_factor = scale_factor * zoom
+
 	--  - centering offsets
 	local centering_offset_x = 0
 	local centering_offset_y = 0
         if scale_factor * svg.width > region_width then
-                centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width)*0.5)
+                centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width*zoom)*0.5)
         elseif scale_factor * svg.height > region_height then
-                centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height)*0.5)
+                centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height*zoom)*0.5)
         end
 
 	-- remember the determined properties
@@ -371,4 +378,15 @@ function __svglover_dc(orig)
         copy = orig
     end
     return copy
+end
+
+-- simple hex dump
+function hex_dump (str)
+    local len = string.len( str )
+    local hex = ""
+    for i = 1, len do
+        local ord = string.byte( str, i )
+        hex = hex .. string.format( "%02x ", ord )
+    end
+    return string.gsub(hex,' $','')
 end
