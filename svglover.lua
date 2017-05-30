@@ -32,7 +32,7 @@ function svglover_load(svgfile)
 	file_contents, _ = love.filesystem.read(svgfile)
 	--  - decompress if appropriate
 	magic = love.filesystem.read(svgfile,2)
-	if hex_dump(magic) == '1f 8b' then
+	if __svglover_hexdump(magic) == '1f 8b' then
 		file_contents = love.math.decompress(file_contents,'zlib')
 	end
 	--  - remove all newlines
@@ -379,7 +379,7 @@ function __svglover_dc(orig)
 end
 
 -- simple hex dump
-function hex_dump (str)
+function __svglover_hexdump (str)
     local len = string.len( str )
     local hex = ""
     for i = 1, len do
