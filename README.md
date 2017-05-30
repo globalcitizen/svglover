@@ -10,6 +10,9 @@ The latest code can always be found at [Github](https://github.com/globalcitizen
 
 ## News
 
+* 2017-05-30: [v1.0.5] (https://github.com/globalcitizen/svglover/releases/tag/v1.0.5) released!
+  - Normalize internal function naming / reduce potential namespace collision issues
+
 * 2016-10-02: [v1.0.4](https://github.com/globalcitizen/svglover/releases/tag/v1.0.4) released!
   - Fix compatibility issue by moving from basic Lua IO functions to 100% Love filesystem functions
 
