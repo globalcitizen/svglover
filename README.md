@@ -6,6 +6,8 @@ Note that because it is specifically written for LÖVE, it is probably not usefu
 
 Also note that I basically only test it with the output of [primitive](https://github.com/fogleman/primitive), which generates simple SVGs automatically from bitmap/raster images. (This could be viewed as a form of compression)
 
+If you really want to squash your SVGs, try running them through [SVGO](https://github.com/svg/svgo) and/or gzipping them. We don't yet have gzip support here, but it would be a great feature to add.
+
 The latest code can always be found at [Github](https://github.com/globalcitizen/svglover).
 
 ## News
