@@ -6,11 +6,13 @@ svglover
 
 --]]
 
+local svglover = {}
+
 svglover_onscreen_svgs = {}
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
-function svglover_load(svgfile)
+function svglover.load(svgfile)
         -- validate input
         --  file exists?
         if not love.filesystem.getInfo(svgfile) then
@@ -32,7 +34,7 @@ function svglover_load(svgfile)
 	file_contents, _ = love.filesystem.read(svgfile)
 	--  - decompress if appropriate
 	magic = love.filesystem.read(svgfile,2)
-	if __svglover_hexdump(magic) == '1f 8b' then
+	if svglover._hexdump(magic) == '1f 8b' then
 		file_contents = love.math.decompress(file_contents,'zlib')
 	end
 	--  - remove all newlines
@@ -48,7 +50,7 @@ function svglover_load(svgfile)
 	--  - finally, loop over lines, appending to svg.drawcommands
 	for line in string.gmatch(file_contents, "[^\n]+") do
 		-- parse it
-  		svg.drawcommands = svg.drawcommands .. "\n" .. __svglover_lineparse(line)
+  		svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
 	end
 
 	-- remove duplicate newlines
@@ -61,7 +63,7 @@ function svglover_load(svgfile)
 end
 
 -- place a loaded svg in a given screen region
-function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
+function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
 	-- handle arguments
 	region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
 	region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
@@ -139,11 +141,11 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
 	svg['border_width'] = border_width
 
 	-- draw
-	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
+	return table.insert(svglover_onscreen_svgs, svglover._dc(svg))
 end
 
 -- actually draw any svgs that are scheduled to be on screen
-function svglover_draw()
+function svglover.draw()
 	-- loop through on-screen SVGs
 	for i,svg in ipairs(svglover_onscreen_svgs) do
 		-- bounding box
@@ -172,7 +174,7 @@ end
 
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function __svglover_lineparse(line)
+function svglover._lineparse(line)
 
 	-- rectangle
 	if string.match(line,'<rect ') then
@@ -363,15 +365,15 @@ function __svglover_lineparse(line)
 end
 
 -- deep copy
-function __svglover_dc(orig)
+function svglover._dc(orig)
     local orig_type = type(orig)
     local copy
     if orig_type == 'table' then
         copy = {}
         for orig_key, orig_value in next, orig, nil do
-            copy[__svglover_dc(orig_key)] = __svglover_dc(orig_value)
+            copy[svglover._dc(orig_key)] = svglover._dc(orig_value)
         end
-        setmetatable(copy, __svglover_dc(getmetatable(orig)))
+        setmetatable(copy, svglover._dc(getmetatable(orig)))
     else
         copy = orig
     end
@@ -379,7 +381,7 @@ function __svglover_dc(orig)
 end
 
 -- simple hex dump
-function __svglover_hexdump (str)
+function svglover._hexdump(str)
     local len = string.len( str )
     local hex = ""
     for i = 1, len do
@@ -388,3 +390,5 @@ function __svglover_hexdump (str)
     end
     return string.gsub(hex,' $','')
 end
+
+return svglover
