@@ -326,7 +326,7 @@ function __svglover_lineparse(line)
                 --  rotation angle
                 angle = string.match(line,"rotate.([^)]+)")
 		if angle ~= nil then
-                	angle = angle * 3.14159/180	-- convert degrees to radians
+                	angle = math.rad(angle)	-- convert degrees to radians
 		end
                 --  scale
 		--   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
