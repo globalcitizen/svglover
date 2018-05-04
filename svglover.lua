@@ -108,7 +108,7 @@ function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,bord
         --  if we use the minimum of the two axes, we get a blank edge
         --  if we use the maximum of the two axes, we lose a bit of the image
 	local scale_factor = 1
-	if leave_no_edges == true then 
+	if leave_no_edges == true then
         	scale_factor = math.max(scale_factor_x,scale_factor_y)
 	else
         	scale_factor = math.min(scale_factor_x,scale_factor_y)
@@ -148,9 +148,9 @@ function svglover_draw()
 	for i,svg in ipairs(svglover_onscreen_svgs) do
 		-- bounding box
 		if svg.border_color ~= nil then
-			love.graphics.setColor(svg.border_color)
+			love.graphics.setColor(svg.border_color[1]/255, svg.border_color[2]/255, svg.border_color[3]/255, svg.border_color[4]/255)
 			love.graphics.rectangle('fill',svg.region_origin_x-svg.border_width, svg.region_origin_y-svg.border_width, svg.region_width+svg.border_width*2, svg.region_height+svg.border_width*2)
-			love.graphics.setColor(0,0,0,255)
+			love.graphics.setColor(0,0,0,1)
 			love.graphics.rectangle('fill',svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
 		end
 		-- push graphics settings
@@ -199,16 +199,16 @@ function __svglover_lineparse(line)
 
                 --  fill (red/green/blue)
                 red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-                red = tonumber(red,16)
-                green = tonumber(green,16)
-                blue = tonumber(blue,16)
+                red = tonumber(red,16)/255
+                green = tonumber(green,16)/255
+                blue = tonumber(blue,16)/255
 
                 --  fill-opacity (alpha)
                 alpha = string.match(line,"opacity=\"([^\"]+)\"")
 		if alpha == nil then
 			alpha = 255
 		else
-                	alpha = math.floor(255*tonumber(alpha,10))
+                	alpha = tonumber(alpha,10)
 		end
 
                 -- output
@@ -249,15 +249,15 @@ function __svglover_lineparse(line)
                 --  fill (red/green/blue)
                 red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
 		if red ~= nil then
-                	red = tonumber(red,16)
-                	green = tonumber(green,16)
-                	blue = tonumber(blue,16)
+                	red = tonumber(red,16)/255
+                	green = tonumber(green,16)/255
+                	blue = tonumber(blue,16)/255
 		end
 
                 --  fill-opacity (alpha)
                 alpha = string.match(line,"opacity=\"(.-)\"")
 		if alpha ~= nil then
-                	alpha = math.floor(255*tonumber(alpha,10))
+                	alpha = tonumber(alpha,10)
 		end
 
                 -- output
@@ -278,13 +278,13 @@ function __svglover_lineparse(line)
 
                 --  fill (red/green/blue)
                 red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-                red = tonumber(red,16)
-                green = tonumber(green,16)
-                blue = tonumber(blue,16)
+                red = tonumber(red,16)/255
+                green = tonumber(green,16)/255
+                blue = tonumber(blue,16)/255
 
                 --  fill-opacity (alpha)
                 alpha = string.match(line,"opacity=\"(.-)\"")
-                alpha = math.floor(255*tonumber(alpha,10))
+                alpha = tonumber(alpha,10)
 
                 --  points (vertices)
                 vertices = string.match(line," points=\"([^\"]+)\"")
@@ -298,9 +298,9 @@ function __svglover_lineparse(line)
 		return result
 
 	-- start or end svg etc.
-	elseif  string.match(line,'</?svg') or 
-		string.match(line,'<.xml') or 
-		string.match(line,'<!--') or 
+	elseif  string.match(line,'</?svg') or
+		string.match(line,'<.xml') or
+		string.match(line,'<!--') or
 		string.match(line,'</?title') or
 		string.match(line,'<!DOCTYPE') then
 		-- ignore
