@@ -6,11 +6,13 @@ svglover
 
 --]]
 
-svglover_onscreen_svgs = {}
+local svglover = {}
+
+svglover.onscreen_svgs = {}
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
-function svglover_load(svgfile)
+function svglover.load(svgfile)
         -- validate input
         --  file exists?
         if not love.filesystem.getInfo(svgfile) then
@@ -24,354 +26,357 @@ function svglover_load(svgfile)
                 os.exit()
         end
 
-	-- initialize return structure
-	local svg = {height=0,height=0,drawcommands=''}
+    -- initialize return structure
+    local svg = {height=0,height=0,drawcommands=''}
 
-	-- process input
-	--  - first we read the whole file in to a string
-	file_contents, _ = love.filesystem.read(svgfile)
-	--  - decompress if appropriate
-	magic = love.filesystem.read(svgfile,2)
-	if __svglover_hexdump(magic) == '1f 8b' then
-		file_contents = love.math.decompress(file_contents,'zlib')
-	end
-	--  - remove all newlines
-	file_contents = string.gsub(file_contents,"\n","")
-	--  - insert newline after all tags
-	file_contents = string.gsub(file_contents,">",">\n")
-	--  - flush blank lines
-	file_contents = string.gsub(file_contents,"\n+","\n")		-- remove multiple newlines
-	file_contents = string.gsub(file_contents,"\n$","")		-- remove trailing newline
-	--  - extract height and width
-	svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)")
-	svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)")
-	--  - finally, loop over lines, appending to svg.drawcommands
-	for line in string.gmatch(file_contents, "[^\n]+") do
-		-- parse it
-  		svg.drawcommands = svg.drawcommands .. "\n" .. __svglover_lineparse(line)
-	end
+    -- process input
+    --  - first we read the whole file in to a string
+    local file_contents, _ = love.filesystem.read(svgfile)
+    --  - decompress if appropriate
+    local magic = love.filesystem.read(svgfile,2)
+    if svglover._hexdump(magic) == '1f 8b' then
+        file_contents = love.math.decompress(file_contents,'zlib')
+    end
+    --  - remove all newlines
+    file_contents = string.gsub(file_contents,"\n","")
+    --  - insert newline after all tags
+    file_contents = string.gsub(file_contents,">",">\n")
+    --  - flush blank lines
+    file_contents = string.gsub(file_contents,"\n+","\n")        -- remove multiple newlines
+    file_contents = string.gsub(file_contents,"\n$","")        -- remove trailing newline
+    --  - extract height and width
+    svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)")
+    svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)")
+    --  - finally, loop over lines, appending to svg.drawcommands
+    for line in string.gmatch(file_contents, "[^\n]+") do
+        -- parse it
+          svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
+    end
 
-	-- remove duplicate newlines
-	svg.drawcommands = string.gsub(svg.drawcommands,"\n+","\n")
-	svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
-	svg.drawcommands = string.gsub(svg.drawcommands,"\n$","")
+    -- remove duplicate newlines
+    svg.drawcommands = string.gsub(svg.drawcommands,"\n+","\n")
+    svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
+    svg.drawcommands = string.gsub(svg.drawcommands,"\n$","")
 
-	-- return
-	return svg
+    -- return
+    return svg
 end
 
 -- place a loaded svg in a given screen region
-function svglover_display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
-	-- handle arguments
-	region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
-	region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
-	if leave_no_edges == nil then
-		leave_no_edges = true
-	end
-	border_color = border_color or nil
-	border_width = border_width or 1
-	zoom = zoom or 1
-	-- validate arguments
-	if svg.width == nil or svg.height == nil or svg.drawcommands == nil then
-		print("FATAL: passed invalid svg object")
-		os.exit()
-	elseif region_width < 1 or region_width > 10000 then
-		print("FATAL: passed invalid region_width")
-		os.exit()
-	elseif region_height < 1 or region_height > 10000 then
-		print("FATAL: passed invalid region_height")
-		os.exit()
-	elseif leave_no_edges ~= false and leave_no_edges ~= true then
-		print("FATAL: passed invalid leave_no_edges")
-		os.exit()
-	elseif border_color ~= nil then
-		for element in pairs(border_color) do
-			if element < 0 or element > 255 or element == nil then
-				print("FATAL: passed invalid border_color")
-				os.exit()
-			end
-		end
-	elseif border_width < 1 or border_width > 10000 then
-		print("FATAL: passed invalid border_width")
-		os.exit()
-	elseif zoom <= 0 or zoom > 10000 then
-		print("FATAL: passed invalid zoom")
-		os.exit()
-	end
-
-	-- calculate drawing parameters
-        --  - determine per-axis scaling
-        local scale_factor_x = region_width  / svg.width
-        local scale_factor_y = region_height / svg.height
-
-        --  - select final scale factor
-        --  if we use the minimum of the two axes, we get a blank edge
-        --  if we use the maximum of the two axes, we lose a bit of the image
-	local scale_factor = 1
-	if leave_no_edges == true then
-        	scale_factor = math.max(scale_factor_x,scale_factor_y)
-	else
-        	scale_factor = math.min(scale_factor_x,scale_factor_y)
-	end
-
-	-- apply zoom
-	scale_factor = scale_factor * zoom
-
-	--  - centering offsets
-	local centering_offset_x = 0
-	local centering_offset_y = 0
-        if scale_factor * svg.width > region_width then
-                centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width*zoom)*0.5)
-        elseif scale_factor * svg.height > region_height then
-                centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height*zoom)*0.5)
+function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
+    -- handle arguments
+    region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
+    region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
+    if leave_no_edges == nil then
+        leave_no_edges = true
+    end
+    border_color = border_color or nil
+    border_width = border_width or 1
+    zoom = zoom or 1
+    -- validate arguments
+    if svg.width == nil or svg.height == nil or svg.drawcommands == nil then
+        print("FATAL: passed invalid svg object")
+        os.exit()
+    elseif region_width < 1 or region_width > 10000 then
+        print("FATAL: passed invalid region_width")
+        os.exit()
+    elseif region_height < 1 or region_height > 10000 then
+        print("FATAL: passed invalid region_height")
+        os.exit()
+    elseif leave_no_edges ~= false and leave_no_edges ~= true then
+        print("FATAL: passed invalid leave_no_edges")
+        os.exit()
+    elseif border_color ~= nil then
+        for element in pairs(border_color) do
+            if element < 0 or element > 255 or element == nil then
+                print("FATAL: passed invalid border_color")
+                os.exit()
+            end
         end
+    elseif border_width < 1 or border_width > 10000 then
+        print("FATAL: passed invalid border_width")
+        os.exit()
+    elseif zoom <= 0 or zoom > 10000 then
+        print("FATAL: passed invalid zoom")
+        os.exit()
+    end
 
-	-- remember the determined properties
-	svg['region_origin_x'] = x
-	svg['region_origin_y'] = y
-	svg['cx'] = centering_offset_x
-	svg['cy'] = centering_offset_y
-	svg['sfx'] = scale_factor
-	svg['sfy'] = scale_factor
-	svg['region_width'] = region_width
-	svg['region_height'] = region_height
-	svg['border_color'] = border_color
-	svg['border_width'] = border_width
+    -- calculate drawing parameters
+    --  - determine per-axis scaling
+    local scale_factor_x = region_width  / svg.width
+    local scale_factor_y = region_height / svg.height
 
-	-- draw
-	return table.insert(svglover_onscreen_svgs,__svglover_dc(svg))
+    --  - select final scale factor
+    --  if we use the minimum of the two axes, we get a blank edge
+    --  if we use the maximum of the two axes, we lose a bit of the image
+    local scale_factor = 1
+    if leave_no_edges == true then
+        scale_factor = math.max(scale_factor_x,scale_factor_y)
+    else
+        scale_factor = math.min(scale_factor_x,scale_factor_y)
+    end
+
+    -- apply zoom
+    scale_factor = scale_factor * zoom
+
+    --  - centering offsets
+    local centering_offset_x = 0
+    local centering_offset_y = 0
+    if scale_factor * svg.width > region_width then
+            centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width*zoom)*0.5)
+    elseif scale_factor * svg.height > region_height then
+            centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height*zoom)*0.5)
+    end
+
+    -- remember the determined properties
+    svg['region_origin_x'] = x
+    svg['region_origin_y'] = y
+    svg['cx'] = centering_offset_x
+    svg['cy'] = centering_offset_y
+    svg['sfx'] = scale_factor
+    svg['sfy'] = scale_factor
+    svg['region_width'] = region_width
+    svg['region_height'] = region_height
+    svg['border_color'] = border_color
+    svg['border_width'] = border_width
+
+    -- draw
+    return table.insert(svglover.onscreen_svgs, svglover._dc(svg))
 end
 
 -- actually draw any svgs that are scheduled to be on screen
-function svglover_draw()
-	-- loop through on-screen SVGs
-	for i,svg in ipairs(svglover_onscreen_svgs) do
-		-- bounding box
-		if svg.border_color ~= nil then
-			love.graphics.setColor(svg.border_color[1]/255, svg.border_color[2]/255, svg.border_color[3]/255, svg.border_color[4]/255)
-			love.graphics.rectangle('fill',svg.region_origin_x-svg.border_width, svg.region_origin_y-svg.border_width, svg.region_width+svg.border_width*2, svg.region_height+svg.border_width*2)
-			love.graphics.setColor(0,0,0,1)
-			love.graphics.rectangle('fill',svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
-		end
-		-- push graphics settings
-		love.graphics.push()
-		-- clip to the target region
-	        love.graphics.setScissor(svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
-	        -- draw in the target region
-	        love.graphics.translate(svg.region_origin_x+svg.cx, svg.region_origin_y+svg.cy)
-	        -- scale to the target region
-	        love.graphics.scale(svg.sfx, svg.sfy)
-		-- draw
-		assert (loadstring (svg.drawcommands)) ()
-	        -- disable clipping
-	        love.graphics.setScissor()
-		-- reset graphics
-		love.graphics.pop()
-	end
+function svglover.draw()
+    -- loop through on-screen SVGs
+    for i,svg in ipairs(svglover.onscreen_svgs) do
+        -- bounding box
+        if svg.border_color ~= nil then
+            love.graphics.setColor(svg.border_color[1]/255, svg.border_color[2]/255, svg.border_color[3]/255, svg.border_color[4]/255)
+            love.graphics.rectangle('fill',svg.region_origin_x-svg.border_width, svg.region_origin_y-svg.border_width, svg.region_width+svg.border_width*2, svg.region_height+svg.border_width*2)
+            love.graphics.setColor(0,0,0,1)
+            love.graphics.rectangle('fill',svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
+        end
+        -- push graphics settings
+        love.graphics.push()
+        -- clip to the target region
+        love.graphics.setScissor(svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
+        -- draw in the target region
+        love.graphics.translate(svg.region_origin_x+svg.cx, svg.region_origin_y+svg.cy)
+        -- scale to the target region
+        love.graphics.scale(svg.sfx, svg.sfy)
+        -- draw
+        assert(loadstring (svg.drawcommands)) ()
+        -- disable clipping
+        love.graphics.setScissor()
+        -- reset graphics
+        love.graphics.pop()
+    end
 end
 
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function __svglover_lineparse(line)
+function svglover._lineparse(line)
 
-	-- rectangle
-	if string.match(line,'<rect ') then
-                -- SVG example:
-                --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
-		--   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" /></g>
-                -- lua example:
-                --   love.graphics.setColor( red, green, blue, alpha )
-                --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
+    -- rectangle
+    if string.match(line,'<rect ') then
+        -- SVG example:
+        --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
+        --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" /></g>
+        -- lua example:
+        --   love.graphics.setColor( red, green, blue, alpha )
+        --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
 
-                -- now, we get the parts
+        -- now, we get the parts
 
-                --  x (x_offset)
-                x_offset = string.match(line," x=\"([^\"]+)\"")
+        --  x (x_offset)
+        local x_offset = string.match(line," x=\"([^\"]+)\"")
 
-                --  y (y_offset)
-                y_offset = string.match(line," y=\"([^\"]+)\"")
+        --  y (y_offset)
+        local y_offset = string.match(line," y=\"([^\"]+)\"")
 
-                --  width (width)
-                width = string.match(line," width=\"([^\"]+)\"")
+        --  width (width)
+        local width = string.match(line," width=\"([^\"]+)\"")
 
-                -- height (height)
-                height = string.match(line," height=\"([^\"]+)\"")
+        -- height (height)
+        local height = string.match(line," height=\"([^\"]+)\"")
 
-                --  fill (red/green/blue)
-                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-                red = tonumber(red,16)/255
-                green = tonumber(green,16)/255
-                blue = tonumber(blue,16)/255
+        --  fill (red/green/blue)
+        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+        red = tonumber(red,16)/255
+        green = tonumber(green,16)/255
+        blue = tonumber(blue,16)/255
 
-                --  fill-opacity (alpha)
-                alpha = string.match(line,"opacity=\"([^\"]+)\"")
-		if alpha == nil then
-			alpha = 255
-		else
-                	alpha = tonumber(alpha,10)
-		end
+        --  fill-opacity (alpha)
+        local alpha = string.match(line,"opacity=\"([^\"]+)\"")
+        if alpha == nil then
+            alpha = 255
+        else
+            alpha = tonumber(alpha,10)
+        end
 
-                -- output
-		result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-                result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
-		return result
+        -- output
+        local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+        result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
 
-	-- ellipse or circle
-	elseif string.match(line,'<ellipse ') or string.match(line,'<circle ') then
-                -- SVG example:
-                --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
-		--   <circle cx="114.279" cy="10.335" r="10"/>
-                -- lua example:
-                --   love.graphics.setColor( red, green, blue, alpha )
-                --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
+        return result
 
-		-- get parts
-                --  cx (center_x)
-                center_x = string.match(line," cx=\"([^\"]+)\"")
+    -- ellipse or circle
+    elseif string.match(line,'<ellipse ') or string.match(line,'<circle ') then
+        -- SVG example:
+        --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
+        --   <circle cx="114.279" cy="10.335" r="10"/>
+        -- lua example:
+        --   love.graphics.setColor( red, green, blue, alpha )
+        --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
 
-                --  cy (center_y)
-                center_y = string.match(line," cy=\"([^\"]+)\"")
+        -- get parts
+        --  cx (center_x)
+        local center_x = string.match(line," cx=\"([^\"]+)\"")
 
-                --  r (radius, for a circle)
-                radius = string.match(line," r=\"([^\"]+)\"")
+        --  cy (center_y)
+        local center_y = string.match(line," cy=\"([^\"]+)\"")
 
-		if radius ~= nil then
-			radius_x = radius
-			radius_y = radius
-		else
-                	--  rx (radius_x, for an ellipse)
-                	radius_x = string.match(line," rx=\"([^\"]+)\"")
+        --  r (radius, for a circle)
+        local radius = string.match(line," r=\"([^\"]+)\"")
 
-                	--  ry (radius_y, for an ellipse)
-                	radius_y = string.match(line," ry=\"([^\"]+)\"")
-		end
+        local radius_x
+        local radius_y
+        if radius ~= nil then
+            radius_x = radius
+            radius_y = radius
+        else
+            --  rx (radius_x, for an ellipse)
+            radius_x = string.match(line," rx=\"([^\"]+)\"")
 
-                --  fill (red/green/blue)
-                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-		if red ~= nil then
-                	red = tonumber(red,16)/255
-                	green = tonumber(green,16)/255
-                	blue = tonumber(blue,16)/255
-		end
+            --  ry (radius_y, for an ellipse)
+            radius_y = string.match(line," ry=\"([^\"]+)\"")
+        end
 
-                --  fill-opacity (alpha)
-                alpha = string.match(line,"opacity=\"(.-)\"")
-		if alpha ~= nil then
-                	alpha = tonumber(alpha,10)
-		end
+        --  fill (red/green/blue)
+        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+        if red ~= nil then
+            red = tonumber(red,16)/255
+            green = tonumber(green,16)/255
+            blue = tonumber(blue,16)/255
+        end
 
-                -- output
-                local result = ''
-		if red ~= nil then
-			result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
-		end
-                result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n";
-		return result
+        --  fill-opacity (alpha)
+        local alpha = string.match(line,"opacity=\"(.-)\"")
+        if alpha ~= nil then
+                    alpha = tonumber(alpha,10)
+        end
 
-	-- polygon (eg. triangle)
-	elseif string.match(line,'<polygon ') then
-                -- SVG example:
-                --   <polygon fill="--6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
-                -- lua example:
-                --   love.graphics.setColor( red, green, blue, alpha )
-                --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+        -- output
+        local result = ''
+        if red ~= nil then
+            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
+        end
+        result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n";
+        return result
 
-                --  fill (red/green/blue)
-                red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-                red = tonumber(red,16)/255
-                green = tonumber(green,16)/255
-                blue = tonumber(blue,16)/255
+    -- polygon (eg. triangle)
+    elseif string.match(line,'<polygon ') then
+        -- SVG example:
+        --   <polygon fill="--6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+        -- lua example:
+        --   love.graphics.setColor( red, green, blue, alpha )
+        --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
-                --  fill-opacity (alpha)
-                alpha = string.match(line,"opacity=\"(.-)\"")
-                alpha = tonumber(alpha,10)
+        --  fill (red/green/blue)
+        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
+        red = tonumber(red,16)/255
+        green = tonumber(green,16)/255
+        blue = tonumber(blue,16)/255
 
-                --  points (vertices)
-                vertices = string.match(line," points=\"([^\"]+)\"")
-                vertices = string.gsub(vertices,' ',',')
+        --  fill-opacity (alpha)
+        local alpha = string.match(line,"opacity=\"(.-)\"")
+        alpha = tonumber(alpha,10)
 
-                -- output
-                --   love.graphics.setColor( red, green, blue, alpha )
-		local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-                --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
-                result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
-		return result
+        --  points (vertices)
+        local vertices = string.match(line," points=\"([^\"]+)\"")
+        vertices = string.gsub(vertices,' ',',')
 
-	-- start or end svg etc.
-	elseif  string.match(line,'</?svg') or
-		string.match(line,'<.xml') or
-		string.match(line,'<!--') or
-		string.match(line,'</?title') or
-		string.match(line,'<!DOCTYPE') then
-		-- ignore
+        -- output
+        --   love.graphics.setColor( red, green, blue, alpha )
+        local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+        --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+        result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
+        return result
 
-	-- end group
-	elseif string.match(line,'</g>') then
-		return 'love.graphics.pop()'
+    -- start or end svg etc.
+    elseif  string.match(line,'</?svg') or
+        string.match(line,'<.xml') or
+        string.match(line,'<!--') or
+        string.match(line,'</?title') or
+        string.match(line,'<!DOCTYPE') then
+        -- ignore
 
-	-- start group
-	elseif string.match(line,'<g[> ]') then
-                --  SVG example:
-                --    <g transform="translate(226 107) rotate(307) scale(3 11)">
-		--    <g transform="scale(4.000000) translate(0.5 0.5)">
-                --  lua example:
-                --    love.graphics.push()
-                --    love.graphics.translate( dx, dy )
-                --    love.graphics.rotate( angle )
-                --    love.graphics.scale( sx, sy )
-		local result = "love.graphics.push()\n"
-                -- extract the goodies
-                --  translation offset
-                offset_x,offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
-                --  rotation angle
-                angle = string.match(line,"rotate.([^)]+)")
-		if angle ~= nil then
-                	angle = math.rad(angle)	-- convert degrees to radians
-		end
-                --  scale
-		--   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
-		scale_x = 1
-		scale_y = 1
-                scale_string = string.match(line,"scale.([^)]+)")
-		if scale_string ~= nil then
-			scale_x,scale_y = string.match(scale_string,"([^ ]+) ([^ ]+)")
-			if scale_x == nil then
-				scale_x = scale_string
-				scale_y = nil
-			end
-		end
+    -- end group
+    elseif string.match(line,'</g>') then
+        return 'love.graphics.pop()'
 
-                -- output
-		if offset_x ~= nil and offset_y ~= nil then
-                	result = result .. "love.graphics.translate(" .. offset_x .. "," .. offset_y .. ")\n"
-		end
-                if angle ~= nil then
-                        result = result .. "love.graphics.rotate(" .. angle .. ")\n"
-                end
-                if scale_y ~= nil then
-                        result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n";
-                elseif scale_x ~= nil then
-                        result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n";
-                end
-		return result
-	else
-		-- display issues so that those motivated to hack can do so ;)
-		print("LINE '" .. line .. "' is unparseable!")
-		os.exit()
-	end
-	return ''
+    -- start group
+    elseif string.match(line,'<g[> ]') then
+        --  SVG example:
+        --    <g transform="translate(226 107) rotate(307) scale(3 11)">
+        --    <g transform="scale(4.000000) translate(0.5 0.5)">
+        --  lua example:
+        --    love.graphics.push()
+        --    love.graphics.translate( dx, dy )
+        --    love.graphics.rotate( angle )
+        --    love.graphics.scale( sx, sy )
+        local result = "love.graphics.push()\n"
+        -- extract the goodies
+        --  translation offset
+        local offset_x, offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
+        --  rotation angle
+        local angle = string.match(line,"rotate.([^)]+)")
+        if angle ~= nil then
+            angle = math.rad(angle)    -- convert degrees to radians
+        end
+        --  scale
+        --   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
+        local scale_x = 1
+        local scale_y = 1
+        local scale_string = string.match(line,"scale.([^)]+)")
+        if scale_string ~= nil then
+            scale_x, scale_y = string.match(scale_string,"([^ ]+) ([^ ]+)")
+            if scale_x == nil then
+                scale_x = scale_string
+                scale_y = nil
+            end
+        end
+
+        -- output
+        if offset_x ~= nil and offset_y ~= nil then
+            result = result .. "love.graphics.translate(" .. offset_x .. "," .. offset_y .. ")\n"
+        end
+        if angle ~= nil then
+            result = result .. "love.graphics.rotate(" .. angle .. ")\n"
+        end
+        if scale_y ~= nil then
+            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n";
+        elseif scale_x ~= nil then
+            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n";
+        end
+        return result
+    else
+        -- display issues so that those motivated to hack can do so ;)
+        print("LINE '" .. line .. "' is unparseable!")
+        os.exit()
+    end
+    return ''
 end
 
 -- deep copy
-function __svglover_dc(orig)
+function svglover._dc(orig)
     local orig_type = type(orig)
     local copy
     if orig_type == 'table' then
         copy = {}
         for orig_key, orig_value in next, orig, nil do
-            copy[__svglover_dc(orig_key)] = __svglover_dc(orig_value)
+            copy[svglover._dc(orig_key)] = svglover._dc(orig_value)
         end
-        setmetatable(copy, __svglover_dc(getmetatable(orig)))
+        setmetatable(copy, svglover._dc(getmetatable(orig)))
     else
         copy = orig
     end
@@ -379,7 +384,7 @@ function __svglover_dc(orig)
 end
 
 -- simple hex dump
-function __svglover_hexdump (str)
+function svglover._hexdump(str)
     local len = string.len( str )
     local hex = ""
     for i = 1, len do
@@ -388,3 +393,5 @@ function __svglover_hexdump (str)
     end
     return string.gsub(hex,' $','')
 end
+
+return svglover
