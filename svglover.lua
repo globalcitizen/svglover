@@ -11,10 +11,10 @@ local svglover = {}
 svglover.onscreen_svgs = {}
 
 -- load an svg and return it as a slightly marked up table
---  markup includes resolution detection
+-- markup includes resolution detection
 function svglover.load(svgfile)
         -- validate input
-        --  file exists?
+        -- file exists?
         if not love.filesystem.getInfo(svgfile) then
                 print("FATAL: file does not exist: '" .. svgfile .. "'")
                 os.exit()
@@ -30,27 +30,27 @@ function svglover.load(svgfile)
     local svg = {height=0,height=0,drawcommands=''}
 
     -- process input
-    --  - first we read the whole file in to a string
+    -- first we read the whole file in to a string
     local file_contents, _ = love.filesystem.read(svgfile)
-    --  - decompress if appropriate
+    -- decompress if appropriate
     local magic = love.filesystem.read(svgfile,2)
     if svglover._hexdump(magic) == '1f 8b' then
         file_contents = love.math.decompress(file_contents,'zlib')
     end
-    --  - remove all newlines
+    -- remove all newlines
     file_contents = string.gsub(file_contents,"\n","")
-    --  - insert newline after all tags
+    -- insert newline after all tags
     file_contents = string.gsub(file_contents,">",">\n")
-    --  - flush blank lines
+    -- flush blank lines
     file_contents = string.gsub(file_contents,"\n+","\n")        -- remove multiple newlines
     file_contents = string.gsub(file_contents,"\n$","")        -- remove trailing newline
-    --  - extract height and width
+    -- extract height and width
     svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)")
     svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)")
-    --  - finally, loop over lines, appending to svg.drawcommands
+    -- finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-          svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
     end
 
     -- remove duplicate newlines
@@ -58,7 +58,6 @@ function svglover.load(svgfile)
     svg.drawcommands = string.gsub(svg.drawcommands,"^\n","")
     svg.drawcommands = string.gsub(svg.drawcommands,"\n$","")
 
-    -- return
     return svg
 end
 
@@ -102,13 +101,13 @@ function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,bord
     end
 
     -- calculate drawing parameters
-    --  - determine per-axis scaling
+    -- determine per-axis scaling
     local scale_factor_x = region_width  / svg.width
     local scale_factor_y = region_height / svg.height
 
-    --  - select final scale factor
-    --  if we use the minimum of the two axes, we get a blank edge
-    --  if we use the maximum of the two axes, we lose a bit of the image
+    -- select final scale factor
+    -- if we use the minimum of the two axes, we get a blank edge
+    -- if we use the maximum of the two axes, we lose a bit of the image
     local scale_factor = 1
     if leave_no_edges == true then
         scale_factor = math.max(scale_factor_x,scale_factor_y)
@@ -119,7 +118,7 @@ function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,bord
     -- apply zoom
     scale_factor = scale_factor * zoom
 
-    --  - centering offsets
+    -- centering offsets
     local centering_offset_x = 0
     local centering_offset_y = 0
     if scale_factor * svg.width > region_width then
@@ -187,25 +186,25 @@ function svglover._lineparse(line)
 
         -- now, we get the parts
 
-        --  x (x_offset)
+        -- x (x_offset)
         local x_offset = string.match(line," x=\"([^\"]+)\"")
 
-        --  y (y_offset)
+        -- y (y_offset)
         local y_offset = string.match(line," y=\"([^\"]+)\"")
 
-        --  width (width)
+        -- width (width)
         local width = string.match(line," width=\"([^\"]+)\"")
 
         -- height (height)
         local height = string.match(line," height=\"([^\"]+)\"")
 
-        --  fill (red/green/blue)
+        -- fill (red/green/blue)
         local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
         red = tonumber(red,16)/255
         green = tonumber(green,16)/255
         blue = tonumber(blue,16)/255
 
-        --  fill-opacity (alpha)
+        -- fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"([^\"]+)\"")
         if alpha == nil then
             alpha = 255
@@ -229,13 +228,13 @@ function svglover._lineparse(line)
         --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
 
         -- get parts
-        --  cx (center_x)
+        -- cx (center_x)
         local center_x = string.match(line," cx=\"([^\"]+)\"")
 
-        --  cy (center_y)
+        -- cy (center_y)
         local center_y = string.match(line," cy=\"([^\"]+)\"")
 
-        --  r (radius, for a circle)
+        -- r (radius, for a circle)
         local radius = string.match(line," r=\"([^\"]+)\"")
 
         local radius_x
@@ -244,14 +243,14 @@ function svglover._lineparse(line)
             radius_x = radius
             radius_y = radius
         else
-            --  rx (radius_x, for an ellipse)
+            -- rx (radius_x, for an ellipse)
             radius_x = string.match(line," rx=\"([^\"]+)\"")
 
-            --  ry (radius_y, for an ellipse)
+            -- ry (radius_y, for an ellipse)
             radius_y = string.match(line," ry=\"([^\"]+)\"")
         end
 
-        --  fill (red/green/blue)
+        -- fill (red/green/blue)
         local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
         if red ~= nil then
             red = tonumber(red,16)/255
@@ -259,7 +258,7 @@ function svglover._lineparse(line)
             blue = tonumber(blue,16)/255
         end
 
-        --  fill-opacity (alpha)
+        -- fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
         if alpha ~= nil then
                     alpha = tonumber(alpha,10)
@@ -287,18 +286,18 @@ function svglover._lineparse(line)
         green = tonumber(green,16)/255
         blue = tonumber(blue,16)/255
 
-        --  fill-opacity (alpha)
+        -- fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
         alpha = tonumber(alpha,10)
 
-        --  points (vertices)
+        -- points (vertices)
         local vertices = string.match(line," points=\"([^\"]+)\"")
         vertices = string.gsub(vertices,' ',',')
 
         -- output
-        --   love.graphics.setColor( red, green, blue, alpha )
+        -- love.graphics.setColor( red, green, blue, alpha )
         local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-        --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+        -- love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
         result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
         return result
 
@@ -316,25 +315,25 @@ function svglover._lineparse(line)
 
     -- start group
     elseif string.match(line,'<g[> ]') then
-        --  SVG example:
-        --    <g transform="translate(226 107) rotate(307) scale(3 11)">
-        --    <g transform="scale(4.000000) translate(0.5 0.5)">
-        --  lua example:
-        --    love.graphics.push()
-        --    love.graphics.translate( dx, dy )
-        --    love.graphics.rotate( angle )
-        --    love.graphics.scale( sx, sy )
+        -- SVG example:
+        --   <g transform="translate(226 107) rotate(307) scale(3 11)">
+        --   <g transform="scale(4.000000) translate(0.5 0.5)">
+        -- lua example:
+        --   love.graphics.push()
+        --   love.graphics.translate( dx, dy )
+        --   love.graphics.rotate( angle )
+        --   love.graphics.scale( sx, sy )
         local result = "love.graphics.push()\n"
         -- extract the goodies
-        --  translation offset
+        -- translation offset
         local offset_x, offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
-        --  rotation angle
+        -- rotation angle
         local angle = string.match(line,"rotate.([^)]+)")
         if angle ~= nil then
             angle = math.rad(angle)    -- convert degrees to radians
         end
-        --  scale
-        --   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
+        -- scale
+        -- in error producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
         local scale_x = 1
         local scale_y = 1
         local scale_string = string.match(line,"scale.([^)]+)")
