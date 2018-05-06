@@ -47,34 +47,39 @@ The library is currently functional only for polygons, elipses (and circles), an
 * With a little more coding you can probably animate their bits
 
 ## Usage
+First import the library with require
+
+```
+svglover = require('svglover')
+```
 
 You should normally load your SVGs straight away in the `love.load()` function to prevent duplicate reads. The syntax for doing this is as follows:
 
 ```
-vector_image = svglover_load('some.svg')
+vector_image = svglover.load('some.svg')
 ```
 
 You then specify where you want them displayed using:
 
 ```
-svglover_display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width,zoom)
+svglover.display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width,zoom)
 ```
 
 ... where `completely_fill_region`, `border_color`, `border_width` and `zoom` are optional.
 
-Finally, you should add the `svglover_draw()` call to the end of your `love.draw()` function.
+Finally, you should add the `svglover.draw()` call to the end of your `love.draw()` function.
 
 A complete example:
 
 ```
 function love.load()
-        vector_image = svglover_load('some.svg')
-        svglover_display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
+        vector_image = svglover.load('some.svg')
+        svglover.display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
 end
 
 function love.draw()
         -- draw any scheduled SVGs
-        svglover_draw()
+        svglover.draw()
 end
 ```
 
