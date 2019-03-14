@@ -27,7 +27,7 @@ function svglover.load(svgfile)
         end
 
     -- initialize return structure
-    local svg = {height=0,height=0,drawcommands=''}
+    local svg = {width=0,height=0,drawcommands=''}
 
     -- process input
     --  - first we read the whole file in to a string
@@ -45,8 +45,8 @@ function svglover.load(svgfile)
     file_contents = string.gsub(file_contents,"\n+","\n")        -- remove multiple newlines
     file_contents = string.gsub(file_contents,"\n$","")        -- remove trailing newline
     --  - extract height and width
-    svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)")
-    svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)")
+    svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)") or 1
+    svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)") or 1
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
@@ -172,15 +172,112 @@ function svglover.draw()
     end
 end
 
+-- parse a color definition, returning the RGB components in the 0..1 range
+function svglover._colorparse(str)
+    if str == nil then return nil end
+    
+    -- #FFFFFF
+    if string.match(str,"#......") then
+        local red, green, blue = string.match(str,"#(..)(..)(..)")
+        red = tonumber(red,16)/255
+        green = tonumber(green,16)/255
+        blue = tonumber(blue,16)/255
+        return red, green, blue
+        
+    -- #FFF
+    elseif string.match(str,"#...") then
+        local red, green, blue = string.match(str,"#(.)(.)(.)")
+        red = tonumber(red,16)/15
+        green = tonumber(green,16)/15
+        blue = tonumber(blue,16)/15
+        return red, green, blue
+    
+    -- rgb(255, 255, 255)
+    elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
+        local red, green, blue = string.match(str,"rgb%((%d+),%s*(%d+),%s*(%d+)%)")
+        red = tonumber(red)/255
+        green = tonumber(green)/255
+        blue = tonumber(blue)/255
+        return red, green, blue
+    
+    -- rgb(100%, 100%, 100%)
+    elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
+        local red, green, blue = string.match(str,"rgb%((%d+)%%,%s*(%d+)%%,%s*(%d+)%%%)")
+        red = tonumber(red)/100
+        green = tonumber(green)/100
+        blue = tonumber(blue)/100
+        return red, green, blue
+    
+    -- Any unsupported format
+    else
+        return nil
+    end
+end
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
 function svglover._lineparse(line)
 
+    -- path
+    if string.match(line, '<path ') then
+        -- SVG example:
+        --   <path d="M 10,30
+        --            A 20,20 0,0,1 50,30
+        --            A 20,20 0,0,1 90,30
+        --            Q 90,60 50,90
+        --            Q 10,60 10,30 z"/>
+        -- lua example:
+        --   love.graphics.setColor( red, green, blue, alpha )
+        --   love.graphics.line( points )
+        --   love.graphics.polygon( "fill", points )
+                
+        --  fill (red/green/blue)
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        
+
+        --  fill-opacity (alpha)
+        local alpha = string.match(line,"opacity=\"([^\"]+)\"")
+        if alpha == nil then
+            alpha = 255
+        else
+            alpha = tonumber(alpha,10)
+        end
+        
+        -- d (definition)
+        local pathdef = string.match(line, " d=\"([^\"]+)\"")
+        
+        -- output
+        local result = ""
+        if red ~= nil then
+            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+        end
+        
+        print("=> "..pathdef)
+        
+        local i = 1
+        while i < #pathdef do
+            local a, b = string.find(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*", i)
+            
+            if a == nil then break end
+            
+            i = b + 1
+            
+            local command = string.sub(pathdef, a, b)
+            local command_args = string.match(pathdef, "[^MmLlHhVvCcSsQqTtAaZz]+", i)
+            
+            if command_args ~= nil then
+                print("  - " .. command .. " -> " .. command_args)
+            end
+        end
+        
+        print()
+        
+        return result
+        
     -- rectangle
-    if string.match(line,'<rect ') then
+    elseif string.match(line,'<rect ') then
         -- SVG example:
         --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
-        --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" /></g>
+        --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" />
         -- lua example:
         --   love.graphics.setColor( red, green, blue, alpha )
         --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
@@ -200,10 +297,7 @@ function svglover._lineparse(line)
         local height = string.match(line," height=\"([^\"]+)\"")
 
         --  fill (red/green/blue)
-        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-        red = tonumber(red,16)/255
-        green = tonumber(green,16)/255
-        blue = tonumber(blue,16)/255
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"([^\"]+)\"")
@@ -252,17 +346,12 @@ function svglover._lineparse(line)
         end
 
         --  fill (red/green/blue)
-        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-        if red ~= nil then
-            red = tonumber(red,16)/255
-            green = tonumber(green,16)/255
-            blue = tonumber(blue,16)/255
-        end
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
         if alpha ~= nil then
-                    alpha = tonumber(alpha,10)
+            alpha = tonumber(alpha,10)
         end
 
         -- output
@@ -282,10 +371,7 @@ function svglover._lineparse(line)
         --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
         --  fill (red/green/blue)
-        local red, green, blue = string.match(line,"fill=\"#(..)(..)(..)\"")
-        red = tonumber(red,16)/255
-        green = tonumber(green,16)/255
-        blue = tonumber(blue,16)/255
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
