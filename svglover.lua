@@ -13,18 +13,18 @@ svglover.onscreen_svgs = {}
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
 function svglover.load(svgfile)
-        -- validate input
-        --  file exists?
-        if not love.filesystem.getInfo(svgfile) then
-                print("FATAL: file does not exist: '" .. svgfile .. "'")
-                os.exit()
-        end
-        --  file is a roughly sane size?
-        local size = love.filesystem.getInfo(svgfile).size
-        if size == nil or size < 10 or size > 500000 then
-                print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
-                os.exit()
-        end
+    -- validate input
+    --  file exists?
+    if not love.filesystem.getInfo(svgfile) then
+            print("FATAL: file does not exist: '" .. svgfile .. "'")
+            os.exit()
+    end
+    --  file is a roughly sane size?
+    local size = love.filesystem.getInfo(svgfile).size
+    if size == nil or size < 10 or size > 500000 then
+            print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
+            os.exit()
+    end
 
     -- initialize return structure
     local svg = {width=0,height=0,drawcommands=''}
@@ -42,7 +42,7 @@ function svglover.load(svgfile)
     --  - insert newline after all tags
     file_contents = string.gsub(file_contents,">",">\n")
     --  - flush blank lines
-    file_contents = string.gsub(file_contents,"\n+","\n")        -- remove multiple newlines
+    file_contents = string.gsub(file_contents,"\n+","\n")      -- remove multiple newlines
     file_contents = string.gsub(file_contents,"\n$","")        -- remove trailing newline
     --  - extract height and width
     svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)") or 1
@@ -50,7 +50,7 @@ function svglover.load(svgfile)
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-          svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
     end
 
     -- remove duplicate newlines
@@ -174,8 +174,10 @@ end
 
 -- parse a color definition, returning the RGB components in the 0..1 range
 function svglover._colorparse(str)
-    if str == nil then return nil end
-    
+    if str == nil then
+        return nil
+    end
+
     -- #FFFFFF
     if string.match(str,"#......") then
         local red, green, blue = string.match(str,"#(..)(..)(..)")
@@ -183,7 +185,7 @@ function svglover._colorparse(str)
         green = tonumber(green,16)/255
         blue = tonumber(blue,16)/255
         return red, green, blue
-        
+
     -- #FFF
     elseif string.match(str,"#...") then
         local red, green, blue = string.match(str,"#(.)(.)(.)")
@@ -191,7 +193,7 @@ function svglover._colorparse(str)
         green = tonumber(green,16)/15
         blue = tonumber(blue,16)/15
         return red, green, blue
-    
+
     -- rgb(255, 255, 255)
     elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
         local red, green, blue = string.match(str,"rgb%((%d+),%s*(%d+),%s*(%d+)%)")
@@ -199,7 +201,7 @@ function svglover._colorparse(str)
         green = tonumber(green)/255
         blue = tonumber(blue)/255
         return red, green, blue
-    
+
     -- rgb(100%, 100%, 100%)
     elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
         local red, green, blue = string.match(str,"rgb%((%d+)%%,%s*(%d+)%%,%s*(%d+)%%%)")
@@ -207,7 +209,7 @@ function svglover._colorparse(str)
         green = tonumber(green)/100
         blue = tonumber(blue)/100
         return red, green, blue
-    
+
     -- Any unsupported format
     else
         return nil
@@ -229,10 +231,9 @@ function svglover._lineparse(line)
         --   love.graphics.setColor( red, green, blue, alpha )
         --   love.graphics.line( points )
         --   love.graphics.polygon( "fill", points )
-                
+
         --  fill (red/green/blue)
         local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
-        
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"([^\"]+)\"")
@@ -241,38 +242,38 @@ function svglover._lineparse(line)
         else
             alpha = tonumber(alpha,10)
         end
-        
+
         -- d (definition)
         local pathdef = string.match(line, " d=\"([^\"]+)\"")
-        
+
         -- output
         local result = ""
         if red ~= nil then
             result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
         end
-        
+
         print("=> "..pathdef)
-        
+
         local i = 1
         while i < #pathdef do
             local a, b = string.find(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*", i)
-            
+
             if a == nil then break end
-            
+
             i = b + 1
-            
+
             local command = string.sub(pathdef, a, b)
             local command_args = string.match(pathdef, "[^MmLlHhVvCcSsQqTtAaZz]+", i)
-            
+
             if command_args ~= nil then
                 print("  - " .. command .. " -> " .. command_args)
             end
         end
-        
+
         print()
-        
+
         return result
-        
+
     -- rectangle
     elseif string.match(line,'<rect ') then
         -- SVG example:
@@ -420,7 +421,7 @@ function svglover._lineparse(line)
             angle = math.rad(angle)    -- convert degrees to radians
         end
         --  scale
-        --   in erorr producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
+        --  in error producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
         local scale_x = 1
         local scale_y = 1
         local scale_string = string.match(line,"scale.([^)]+)")
