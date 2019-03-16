@@ -174,7 +174,7 @@ end
 
 -- parse a color definition, returning the RGB components in the 0..1 range
 function svglover._colorparse(str)
-    if str == nil then
+    if str == nil or str == "none" then
         return nil
     end
 
