@@ -65,8 +65,8 @@ end
 -- place a loaded svg in a given screen region
 function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,border_color,border_width,zoom)
     -- handle arguments
-    region_width = region_width or math.min(love.graphics.getWidth-x,svg.width)
-    region_height = region_height or math.min(love.graphics.getHeight-y,svg.height)
+    region_width = region_width or math.min(love.graphics.getWidth() - x, svg.width)
+    region_height = region_height or math.min(love.graphics.getHeight() - y, svg.height)
     if leave_no_edges == nil then
         leave_no_edges = true
     end
