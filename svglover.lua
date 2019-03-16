@@ -508,6 +508,15 @@ function svglover._lineparse(line)
             end
         end
 
+        if #vertices > 0 then
+            result = result .. svglover._gensubpath(
+                vertices,
+                f_red, f_green, f_blue, f_opacity,
+                s_red, s_green, s_blue, s_opacity,
+                linewidth, closed
+            )
+        end
+
         return result
 
     -- rectangle
