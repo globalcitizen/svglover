@@ -596,7 +596,9 @@ function svglover._lineparse(line)
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
-        if alpha ~= nil then
+        if alpha == nil then
+            alpha = 1
+        else
             alpha = tonumber(alpha,10)
         end
 
