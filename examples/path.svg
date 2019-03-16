@@ -1,4 +1,5 @@
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+<!-- This file contains code from https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d -->
+<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
     <g transform="translate(0 0) scale(0.1 0.1)">
         <!-- MoveTo and horizontal LineTo -->
         <path fill="none" stroke="#f00"
