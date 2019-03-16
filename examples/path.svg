@@ -1,6 +1,8 @@
 <!-- This file contains code from https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d -->
-<svg viewBox="0 0 20 50" width="200" height="500" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 30 50" width="300" height="500" xmlns="http://www.w3.org/2000/svg">
     <g transform="scale(0.1 0.1)">
+        <path fill="#222" stroke="white" stroke-width="0.1" d="M0,0h300v500h-300z" />
+
         <g transform="translate(0 0)">
             <!-- MoveTo and horizontal LineTo -->
             <path fill="none" stroke="#f00"
