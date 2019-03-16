@@ -23,9 +23,9 @@ function love.load()
 	local pic5 = svglover.load('examples/circle.svg')
 	svglover.display(pic5,600,600,250,250,true,{0,0,255,128},20)
 	local pic6 = svglover.load('examples/rotated-rectangle.svg')
-	svglover.display(pic6,1120,100,300,750,true,{0,0,0,256},3)
-	local pic7 = svglover.load('examples/ghostscript-tiger.svg')
-	svglover.display(pic7, 200, 200, 100, 100)
+	svglover.display(pic6,1120,100,300,750,true,{0,0,0,255},3)
+	local pic7 = svglover.load('examples/path.svg')
+	svglover.display(pic7,220,500,400,400)
 end
 
 function love.draw()

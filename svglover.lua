@@ -245,6 +245,55 @@ function svglover._colorparse(str)
     end
 end
 
+-- generates a lua table list literal from the given table
+function svglover._unpackstr(data)
+    local result = ""
+
+    for i = 1, #data do
+        result = result .. tostring(data[i])
+
+        -- add commas
+        if i < #data then
+            result = result .. ","
+        end
+    end
+
+    return result
+end
+
+-- generates LOVE code for a subpath
+function svglover._gensubpath(vertices, f_red, f_green, f_blue, f_opacity, s_red, s_green, s_blue, s_opacity, linewidth, closed)
+    if
+        (f_red == nil and s_red == nil) or
+        (#vertices < 4)
+    then
+        return ""
+    end
+
+    local result = ""
+    -- result = result .. "local vertices = " .. svglover._unpackstr(vertices) .. "\n"
+
+    -- fill
+    if f_red ~= nil and #vertices >= 6 then
+        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. f_opacity .. ")\n"
+        result = result .. "love.graphics.polygon(\"fill\", " .. svglover._unpackstr(vertices) .. ")\n"
+    end
+
+    -- stroke
+    if s_red ~= nil and #vertices >= 4 then
+        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. s_opacity .. ")\n"
+        result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
+
+        if closed then
+            result = result .. "love.graphics.polygon(\"line\", " .. svglover._unpackstr(vertices) .. ")\n"
+        else
+            result = result .. "love.graphics.line(" .. svglover._unpackstr(vertices) .. ")\n"
+        end
+    end
+
+    return result
+end
+
 -- parse an input line from an SVG, returning the equivalent LOVE code
 function svglover._lineparse(line)
 
@@ -257,19 +306,49 @@ function svglover._lineparse(line)
         --            Q 90,60 50,90
         --            Q 10,60 10,30 z"/>
         -- lua example:
-        --   love.graphics.setColor( red, green, blue, alpha )
-        --   love.graphics.line( points )
-        --   love.graphics.polygon( "fill", points )
+        --   do
+        --   local vertices = {60,40,70,40}
+        --   love.graphics.setColor(r,g,b,a)
+        --   love.graphics.setLineWidth(width)
+        --   love.graphics.line(vertices)
+        --   end
 
-        --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        -- get the stuff
 
-        --  fill-opacity (alpha)
-        local alpha = string.match(line,"opacity=\"([^\"]+)\"")
-        if alpha == nil then
-            alpha = 255
+        --  colors (red/green/blue)
+        local f_red, f_green, f_blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        local s_red, s_green, s_blue = svglover._colorparse(string.match(line,"stroke=\"([^\"]+)\""))
+
+        --  opacity
+        local opacity = string.match(line,"opacity=\"([^\"]+)\"")
+        if opacity == nil then
+            opacity = 1
         else
-            alpha = tonumber(alpha,10)
+            opacity = tonumber(opacity,10)
+        end
+
+        --  fill-opacity
+        local f_opacity = string.match(line,"fill-opacity=\"([^\"]+)\"")
+        if f_opacity == nil then
+            f_opacity = opacity
+        else
+            f_opacity = tonumber(f_opacity,10) * opacity
+        end
+
+        --  stroke-opacity
+        local s_opacity = string.match(line,"stroke-opacity=\"([^\"]+)\"")
+        if s_opacity == nil then
+            s_opacity = opacity
+        else
+            s_opacity = tonumber(s_opacity,10) * opacity
+        end
+
+        -- stroke
+        local linewidth = string.match(line,"stroke-width=\"([^\"]+)\"")
+        if linewidth == nil then
+            linewidth = 1
+        else
+            linewidth = tonumber(linewidth,10)
         end
 
         -- d (definition)
@@ -277,29 +356,157 @@ function svglover._lineparse(line)
 
         -- output
         local result = ""
-        if red ~= nil then
-            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-        end
 
-        print("=> "..pathdef)
+        local ipx = 0
+        local ipy = 0
+        local cpx = 0
+        local cpy = 0
+        local closed = false
+        local vertices = {}
 
-        local i = 1
-        while i < #pathdef do
-            local a, b = string.find(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*", i)
+        --  iterate through all dem commands
+        for op, strargs in string.gmatch(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*([^MmLlHhVvCcSsQqTtAaZz]*)%s*") do
+            local args = {}
 
-            if a == nil then break end
+            -- parse command arguments
+            if strargs ~= nil and #strargs > 0 then
+                for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
+                   table.insert(args, 1, tonumber(arg,10))
+                end
+            end
 
-            i = b + 1
+            -- move to
+            if op == "M" then
+                if #vertices > 0 then
+                    result = result .. svglover._gensubpath(
+                        vertices,
+                        f_red, f_green, f_blue, f_opacity,
+                        s_red, s_green, s_blue, s_opacity,
+                        linewidth, closed
+                    )
+                    vertices = {}
+                end
 
-            local command = string.sub(pathdef, a, b)
-            local command_args = string.match(pathdef, "[^MmLlHhVvCcSsQqTtAaZz]+", i)
+                ipx = table.remove(args)
+                ipy = table.remove(args)
+                cpx = ipx
+                cpy = ipy
 
-            if command_args ~= nil then
-                print("  - " .. command .. " -> " .. command_args)
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+
+                while #args >= 2 do
+                    cpx = table.remove(args)
+                    cpy = table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- move to (relative)
+            elseif op == "m" then
+                if #vertices > 0 then
+                    result = result .. svglover._gensubpath(
+                        vertices,
+                        f_red, f_green, f_blue, f_opacity,
+                        s_red, s_green, s_blue, s_opacity,
+                        linewidth, closed
+                    )
+                    vertices = {}
+                end
+
+                ipx = cpx + table.remove(args)
+                ipy = cpy + table.remove(args)
+                cpx = ipx
+                cpy = ipy
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+
+                while #args >= 2 do
+                    cpx = cpx + table.remove(args)
+                    cpy = cpy + table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to
+            elseif op == "L" then
+                while #args >= 2 do
+                    cpx = table.remove(args)
+                    cpy = table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to (relative)
+            elseif op == "l" then
+                while #args >= 2 do
+                    cpx = cpx + table.remove(args)
+                    cpy = cpy + table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to (horizontal)
+            elseif op == "H" then
+                while #args >= 1 do
+                    cpx = table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to (horizontal, relative)
+            elseif op == "h" then
+                while #args >= 1 do
+                    cpx = cpx + table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to (vertical)
+            elseif op == "V" then
+                while #args >= 1 do
+                    cpy = table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- line to (vertical, relative)
+            elseif op == "v" then
+                while #args >= 1 do
+                    cpy = cpy + table.remove(args)
+
+                    table.insert(vertices, cpx)
+                    table.insert(vertices, cpy)
+                end
+
+            -- cubic bezier curve
+            elseif op == "c" then
+
+            -- smooth cubic Bézier curve
+            elseif op == "s" then
+
+            -- quadratic Bézier curve
+            elseif op == "q" then
+
+            -- smooth quadratic Bézier curve
+            elseif op == "t" then
+
+            -- arc to
+            elseif op == "a" then
+
+            -- close shape
+            elseif op == "z" then
+
             end
         end
-
-        print()
 
         return result
 
@@ -323,7 +530,7 @@ function svglover._lineparse(line)
         --  width (width)
         local width = string.match(line," width=\"([^\"]+)\"")
 
-        -- height (height)
+        --  height (height)
         local height = string.match(line," height=\"([^\"]+)\"")
 
         --  fill (red/green/blue)
