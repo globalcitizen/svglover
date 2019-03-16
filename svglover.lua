@@ -511,6 +511,8 @@ function svglover._lineparse(line, bezier_depth)
                     for _, v in ipairs(curve:render(bezier_depth)) do
                         table.insert(vertices, v)
                     end
+
+                    curve:release()
                 end
 
             -- cubic bezier curve (relative)
@@ -533,6 +535,8 @@ function svglover._lineparse(line, bezier_depth)
                     for _, v in ipairs(curve:render(bezier_depth)) do
                         table.insert(vertices, v)
                     end
+
+                    curve:release()
                 end
 
             -- smooth cubic Bézier curve
