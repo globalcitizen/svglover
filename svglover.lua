@@ -543,8 +543,8 @@ function svglover._lineparse(line, bezier_depth)
         local ipy = 0
         local cpx = 0
         local cpy = 0
-        local prev_x2 = 0
-        local prev_y2 = 0
+        local prev_ctrlx = 0
+        local prev_ctrly = 0
         local closed = false
         local vertices = {}
 
@@ -698,8 +698,8 @@ function svglover._lineparse(line, bezier_depth)
                     cpy = y
 
                     -- remember the end control point for the next command
-                    prev_x2 = x2
-                    prev_y2 = y2
+                    prev_ctrlx = x2
+                    prev_ctrly = y2
                 end
 
             -- cubic bezier curve (relative)
@@ -729,8 +729,8 @@ function svglover._lineparse(line, bezier_depth)
                     cpy = y
 
                     -- remember the end control point for the next command
-                    prev_x2 = x2
-                    prev_y2 = y2
+                    prev_ctrlx = x2
+                    prev_ctrly = y2
                 end
 
             -- smooth cubic Bézier curve
@@ -742,8 +742,8 @@ function svglover._lineparse(line, bezier_depth)
                     local y = table.remove(args)
 
                     -- calculate the start control point
-                    local x1 = cpx + cpx - prev_x2
-                    local y1 = cpy + cpy - prev_y2
+                    local x1 = cpx + cpx - prev_ctrlx
+                    local y1 = cpy + cpy - prev_ctrly
 
                     -- generate vertices
                     local curve = love.math.newBezierCurve(cpx, cpy, x, y)
@@ -762,8 +762,8 @@ function svglover._lineparse(line, bezier_depth)
                     cpy = y
 
                     -- remember the end control point for the next command
-                    prev_x2 = x2
-                    prev_y2 = y2
+                    prev_ctrlx = x2
+                    prev_ctrly = y2
                 end
 
             -- smooth cubic Bézier curve (relative)
@@ -775,8 +775,8 @@ function svglover._lineparse(line, bezier_depth)
                     local y = cpy + table.remove(args)
 
                     -- calculate the start control point
-                    local x1 = cpx + cpx - prev_x2
-                    local y1 = cpy + cpy - prev_y2
+                    local x1 = cpx + cpx - prev_ctrlx
+                    local y1 = cpy + cpy - prev_ctrly
 
                     -- generate vertices
                     local curve = love.math.newBezierCurve(cpx, cpy, x, y)
@@ -795,12 +795,37 @@ function svglover._lineparse(line, bezier_depth)
                     cpy = y
 
                     -- remember the end control point for the next command
-                    prev_x2 = x2
-                    prev_y2 = y2
+                    prev_ctrlx = x2
+                    prev_ctrly = y2
                 end
 
             -- quadratic Bézier curve
             elseif op == "Q" then
+                while #args >= 4 do
+                    local x1 = table.remove(args)
+                    local y1 = table.remove(args)
+                    local x = table.remove(args)
+                    local y = table.remove(args)
+
+                    -- generate vertices
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+
+                    -- release object
+                    curve:release()
+
+                    -- move the current point
+                    cpx = x
+                    cpy = y
+
+                    -- remember the end control point for the next command
+                    prev_ctrlx = x1
+                    prev_ctrly = y1
+                end
 
             -- quadratic Bézier curve (relative)
             elseif op == "q" then
@@ -825,10 +850,10 @@ function svglover._lineparse(line, bezier_depth)
 
             end
 
-            -- if the command wasn't a curve command, set prev_x2 and prev_y2 to cpx and cpy
+            -- if the command wasn't a curve command, set prev_ctrlx and prev_ctrly to cpx and cpy
             if not string.match(op, "[CcSsQqTt]") then
-                prev_x2 = cpx
-                prev_y2 = cpy
+                prev_ctrlx = cpx
+                prev_ctrly = cpy
             end
         end
 
