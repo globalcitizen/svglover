@@ -12,7 +12,7 @@ svglover.onscreen_svgs = {}
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
-function svglover.load(svgfile)
+function svglover.load(svgfile, bezier_depth)
     -- validate input
     --  file exists?
     if not love.filesystem.getInfo(svgfile) then
@@ -68,7 +68,7 @@ function svglover.load(svgfile)
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, bezier_depth)
     end
 
     -- remove duplicate newlines
@@ -299,7 +299,7 @@ function svglover._gensubpath(vertices, f_red, f_green, f_blue, f_opacity, s_red
 end
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function svglover._lineparse(line)
+function svglover._lineparse(line, bezier_depth)
 
     -- path
     if string.match(line, '<path ') then
@@ -493,6 +493,25 @@ function svglover._lineparse(line)
 
             -- cubic bezier curve
             elseif op == "C" then
+                while #args >= 6 do
+                    local x1 = table.remove(args)
+                    local y1 = table.remove(args)
+                    local x2 = table.remove(args)
+                    local y2 = table.remove(args)
+                    local x = table.remove(args)
+                    local y = table.remove(args)
+
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+                    curve:insertControlPoint(x2, y2)
+
+                    cpx = x
+                    cpy = y
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+                end
 
             -- cubic bezier curve (relative)
             elseif op == "c" then
