@@ -917,9 +917,11 @@ function svglover._lineparse(line, bezier_depth, buffers)
 
             -- arc to
             elseif op == "A" then
+                print("ArcTo not implemented")
 
             -- arc to (relative)
             elseif op == "a" then
+                print("Relative ArcTo not implemented")
 
             -- close shape (relative and absolute are the same)
             elseif op == "Z" or op == "z" then
