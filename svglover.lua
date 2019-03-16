@@ -45,8 +45,8 @@ function svglover.load(svgfile)
     file_contents = string.gsub(file_contents,"\n+","\n")      -- remove multiple newlines
     file_contents = string.gsub(file_contents,"\n$","")        -- remove trailing newline
     --  - extract height and width
-    svg.width = string.match(file_contents,"<svg [^>]+width=\"([0-9.]+)") or 1
-    svg.height = string.match(file_contents,"<svg [^>]+height=\"([0-9.]+)") or 1
+    svg.width = string.match(file_contents,"<svg[^>]+width=\"([0-9.]+)") or 1
+    svg.height = string.match(file_contents,"<svg[^>]+height=\"([0-9.]+)") or 1
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
