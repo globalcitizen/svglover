@@ -180,8 +180,8 @@ function svglover.load(svgfile, bezier_depth)
         width = 0;
         height = 0;
         viewport = nil;
-        buffers = {};
-        drawcommands = 'local buffers = ...\n';
+        extdata = {};
+        drawcommands = 'local extdata = ...\n';
     }
 
     -- process input
@@ -220,7 +220,7 @@ function svglover.load(svgfile, bezier_depth)
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, bezier_depth, svg.buffers)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, bezier_depth, svg.extdata)
     end
 
     -- remove duplicate newlines
@@ -344,7 +344,7 @@ function svglover.draw()
             end
 
             -- draw
-            assert(loadstring (svg.drawcommands)) (svg.buffers)
+            assert(loadstring (svg.drawcommands)) (svg.extdata)
             -- disable clipping
             love.graphics.setScissor()
             -- reset graphics
@@ -458,7 +458,7 @@ function svglover._gensubpath(
     -- fill
     if f_red ~= nil and vertexcount >= 6 then
         result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-        result = result .. "love.graphics.polygon(\"fill\", buffers[" .. bufferid .. "])\n"
+        result = result .. "love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "])\n"
     end
 
     -- stroke
@@ -467,9 +467,9 @@ function svglover._gensubpath(
         result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
 
         if closed == true then
-            result = result .. "love.graphics.polygon(\"line\", buffers[" .. bufferid .. "])\n"
+            result = result .. "love.graphics.polygon(\"line\", extdata[" .. bufferid .. "])\n"
         else
-            result = result .. "love.graphics.line(buffers[" .. bufferid .. "])\n"
+            result = result .. "love.graphics.line(extdata[" .. bufferid .. "])\n"
         end
     end
 
@@ -477,7 +477,7 @@ function svglover._gensubpath(
 end
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function svglover._lineparse(line, bezier_depth, buffers)
+function svglover._lineparse(line, bezier_depth, extdata)
     -- path
     if string.match(line, '<path%s') then
         -- SVG example:
@@ -560,9 +560,9 @@ function svglover._lineparse(line, bezier_depth, buffers)
             -- move to
             if op == "M" then
                 if #vertices > 0 then
-                    table.insert(buffers, vertices)
+                    table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #buffers, #vertices,
+                        #extdata, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -589,9 +589,9 @@ function svglover._lineparse(line, bezier_depth, buffers)
             -- move to (relative)
             elseif op == "m" then
                 if #vertices > 0 then
-                    table.insert(buffers, vertices)
+                    table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #buffers, #vertices,
+                        #extdata, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -926,9 +926,9 @@ function svglover._lineparse(line, bezier_depth, buffers)
             -- close shape (relative and absolute are the same)
             elseif op == "Z" or op == "z" then
                 if #vertices > 0 then
-                    table.insert(buffers, vertices)
+                    table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #buffers, #vertices,
+                        #extdata, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth, true
@@ -950,9 +950,9 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         if #vertices > 0 then
-            table.insert(buffers, vertices)
+            table.insert(extdata, vertices)
             result = result .. svglover._gensubpath(
-                #buffers, #vertices,
+                #extdata, #vertices,
                 f_red, f_green, f_blue, f_alpha, f_opacity,
                 s_red, s_green, s_blue, s_alpha, s_opacity,
                 opacity, linewidth
@@ -1153,19 +1153,19 @@ function svglover._lineparse(line, bezier_depth, buffers)
         for n in string.gmatch(vertices, "([^,]+)") do
             table.insert(vertices_coords, tonumber(n,10))
         end
-        table.insert(buffers, vertices_coords)
+        table.insert(extdata, vertices_coords)
 
         -- output
         local result = ""
 
         if f_red ~= nil then
             result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", buffers[" .. (#buffers) .. "])\n"
+            result = result .. "love.graphics.polygon(\"fill\", extdata[" .. (#extdata) .. "])\n"
         end
 
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"line\", buffers[" .. (#buffers) .. "])\n"
+            result = result .. "love.graphics.polygon(\"line\", extdata[" .. (#extdata) .. "])\n"
         end
         
         return result
@@ -1221,19 +1221,19 @@ function svglover._lineparse(line, bezier_depth, buffers)
         for n in string.gmatch(vertices, "([^,]+)") do
             table.insert(vertices_coords, tonumber(n,10))
         end
-        table.insert(buffers, vertices_coords)
+        table.insert(extdata, vertices_coords)
 
         -- output
         local result = ""
 
         if f_red ~= nil then
             result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", buffers[" .. (#buffers) .. "])\n"
+            result = result .. "love.graphics.polygon(\"fill\", extdata[" .. (#extdata) .. "])\n"
         end
 
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.line(buffers[" .. (#buffers) .. "])\n"
+            result = result .. "love.graphics.line(extdata[" .. (#extdata) .. "])\n"
         end
 
         return result
@@ -1310,6 +1310,26 @@ function svglover._lineparse(line, bezier_depth, buffers)
                     end
 
                     result = result .. "love.graphics.scale(" .. x .. ", " .. y .. ")\n"
+
+                -- matrix
+                elseif cmd == "matrix" then
+                    local a = table.remove(args)
+                    local b = table.remove(args)
+                    local c = table.remove(args)
+                    local d = table.remove(args)
+                    local e = table.remove(args)
+                    local f = table.remove(args)
+
+                    local matrix = love.math.newTransform()
+                    matrix:setMatrix(
+                        a, c, e, 0,
+                        b, d, f, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, 1
+                    )
+                    table.insert(extdata, matrix)
+
+                    result = result .. "love.graphics.applyTransform(extdata[" .. (#extdata) .. "])\n"
 
                 else
                     -- let em know what's missing!!!
