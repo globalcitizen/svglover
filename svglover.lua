@@ -496,6 +496,94 @@ function svglover._getattributes(line, defaults)
     return attributes
 end
 
+function svglover._parsetransform(transform, extdata)
+    local result = ""
+
+    -- parse every command
+    for cmd, strargs in string.gmatch(transform, "%s*(.-)%s*%((.-)%)") do
+        local args = {}
+
+        -- parse command arguments
+        if strargs ~= nil and #strargs > 0 then
+            for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
+               table.insert(args, 1, tonumber(arg,10))
+            end
+        end
+
+        -- translate
+        if cmd == "translate" then
+            local x = table.remove(args)
+            local y = table.remove(args) or 0
+
+            result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
+
+        -- rotate
+        elseif cmd == "rotate" then
+            local a = table.remove(args)
+            local x = table.remove(args) or 0
+            local y = table.remove(args) or 0
+
+            if x ~= 0 and y ~= 0 then
+                result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
+            end
+
+            result = result .. "love.graphics.rotate(" .. math.rad(a) .. ")\n"
+
+            if x ~= 0 and y ~= 0 then
+                result = result .. "love.graphics.translate(" .. (-x) .. ", " .. (-y) .. ")\n"
+            end
+
+        -- scale
+        elseif cmd == "scale" then
+            local x = table.remove(args)
+            local y = table.remove(args)
+
+            if y == nil then
+                y = x
+            end
+
+            result = result .. "love.graphics.scale(" .. x .. ", " .. y .. ")\n"
+
+        -- matrix
+        elseif cmd == "matrix" then
+            local a = table.remove(args)
+            local b = table.remove(args)
+            local c = table.remove(args)
+            local d = table.remove(args)
+            local e = table.remove(args)
+            local f = table.remove(args)
+
+            local matrix = love.math.newTransform()
+            matrix:setMatrix(
+                a, c, e, 0,
+                b, d, f, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            )
+            table.insert(extdata, matrix)
+
+            result = result .. "love.graphics.applyTransform(extdata[" .. (#extdata) .. "])\n"
+
+        elseif cmd == "skewX" then
+            local a = table.remove(args)
+
+            result = result .. "love.graphics.shear(" .. math.rad(a) .. ", 0)\n"
+
+        elseif cmd == "skewY" then
+            local a = table.remove(args)
+
+            result = result .. "love.graphics.shear(0, " .. math.rad(a) .. ")\n"
+
+        else
+            -- let em know what's missing!!!
+            print("Unimplemented transform command: " .. cmd .. "!")
+            os.exit()
+        end
+    end
+
+    return result
+end
+
 -- parse an input line from an SVG, returning the equivalent LOVE code
 function svglover._lineparse(line, state, bezier_depth, extdata)
     local parent_attr = state.parent_attr_stack[#(state.parent_attr_stack)]
@@ -982,6 +1070,14 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
             )
         end
 
+        if attr["transform"] ~= nil then
+            result =
+                "love.graphics.push()\n" ..
+                svglover._parsetransform(attr["transform"], extdata) ..
+                result ..
+                "love.graphics.pop()\n"
+        end
+
         return result
 
     -- rectangle
@@ -1047,6 +1143,14 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
             result = result .. "love.graphics.rectangle(\"line\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+        end
+
+        if attr["transform"] ~= nil then
+            result =
+                "love.graphics.push()\n" ..
+                svglover._parsetransform(attr["transform"], extdata) ..
+                result ..
+                "love.graphics.pop()\n"
         end
 
         return result
@@ -1126,6 +1230,14 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
             result = result .. "love.graphics.ellipse(\"line\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
         end
 
+        if attr["transform"] ~= nil then
+            result =
+                "love.graphics.push()\n" ..
+                svglover._parsetransform(attr["transform"], extdata) ..
+                result ..
+                "love.graphics.pop()\n"
+        end
+
         return result
 
     -- polygon (eg. triangle)
@@ -1191,6 +1303,14 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
             result = result .. "love.graphics.polygon(\"line\", extdata[" .. (#extdata) .. "])\n"
+        end
+
+        if attr["transform"] ~= nil then
+            result =
+                "love.graphics.push()\n" ..
+                svglover._parsetransform(attr["transform"], extdata) ..
+                result ..
+                "love.graphics.pop()\n"
         end
         
         return result
@@ -1260,6 +1380,14 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
             result = result .. "love.graphics.line(extdata[" .. (#extdata) .. "])\n"
         end
 
+        if attr["transform"] ~= nil then
+            result =
+                "love.graphics.push()\n" ..
+                svglover._parsetransform(attr["transform"], extdata) ..
+                result ..
+                "love.graphics.pop()\n"
+        end
+
         return result
 
     -- start or end svg etc.
@@ -1302,77 +1430,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         local result = "love.graphics.push()\n"
 
         if transform ~= nil then
-            -- parse every command
-            for cmd, strargs in string.gmatch(transform, "%s*(.-)%s*%((.-)%)") do
-                local args = {}
-
-                -- parse command arguments
-                if strargs ~= nil and #strargs > 0 then
-                    for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
-                       table.insert(args, 1, tonumber(arg,10))
-                    end
-                end
-
-                -- translate
-                if cmd == "translate" then
-                    local x = table.remove(args)
-                    local y = table.remove(args) or 0
-
-                    result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
-
-                -- rotate
-                elseif cmd == "rotate" then
-                    local a = table.remove(args)
-                    local x = table.remove(args) or 0
-                    local y = table.remove(args) or 0
-
-                    if x ~= 0 and y ~= 0 then
-                        result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
-                    end
-
-                    result = result .. "love.graphics.rotate(" .. math.rad(a) .. ")\n"
-
-                    if x ~= 0 and y ~= 0 then
-                        result = result .. "love.graphics.translate(" .. (-x) .. ", " .. (-y) .. ")\n"
-                    end
-
-                -- scale
-                elseif cmd == "scale" then
-                    local x = table.remove(args)
-                    local y = table.remove(args)
-
-                    if y == nil then
-                        y = x
-                    end
-
-                    result = result .. "love.graphics.scale(" .. x .. ", " .. y .. ")\n"
-
-                -- matrix
-                elseif cmd == "matrix" then
-                    local a = table.remove(args)
-                    local b = table.remove(args)
-                    local c = table.remove(args)
-                    local d = table.remove(args)
-                    local e = table.remove(args)
-                    local f = table.remove(args)
-
-                    local matrix = love.math.newTransform()
-                    matrix:setMatrix(
-                        a, c, e, 0,
-                        b, d, f, 0,
-                        0, 0, 1, 0,
-                        0, 0, 0, 1
-                    )
-                    table.insert(extdata, matrix)
-
-                    result = result .. "love.graphics.applyTransform(extdata[" .. (#extdata) .. "])\n"
-
-                else
-                    -- let em know what's missing!!!
-                    print("Unimplemented transform command: " .. cmd .. "!")
-                    os.exit()
-                end
-            end
+            result = result .. svglover._parsetransform(transform, extdata)
         end
 
         return result
