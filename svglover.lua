@@ -44,6 +44,8 @@ function svglover.load(svgfile, bezier_depth)
     end
     --  - remove all newlines
     file_contents = string.gsub(file_contents,"\r?\n","")
+    --  - remove all comments
+    file_contents = string.gsub(file_contents,"<!%-%-.-%-%->","")
     --  - insert newline after all tags
     file_contents = string.gsub(file_contents,">",">\n")
     --  - flush blank lines
