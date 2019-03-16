@@ -206,7 +206,7 @@ function svglover.load(svgfile, bezier_depth)
     svg.height = string.match(file_contents,"<svg[^>]+height=\"([0-9.]+)") or 1
     --  - get viewport
     if string.find(file_contents, "<svg[^>]+viewBox=\"") then
-        local def = string.match(file_contents, "<svg[^>]+viewBox=\"([^\"]+)")
+        local def = string.match(file_contents, "<svg[^>]+viewBox=\"(.-)\"")
         local next_num = string.gmatch(def, "%-?[^%s,%-]+")
 
         svg.viewport = {
@@ -497,11 +497,11 @@ function svglover._lineparse(line, bezier_depth, buffers)
         -- get the stuff
 
         --  colors (red/green/blue)
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"(.-)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"(.-)\""))
 
         --  opacity
-        local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
+        local opacity = string.match(line,"%sopacity=\"(.-)\"")
         if opacity == nil then
             opacity = 1
         else
@@ -509,7 +509,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  fill-opacity
-        local f_opacity = string.match(line,"%sfill%-opacity=\"([^\"]+)\"")
+        local f_opacity = string.match(line,"%sfill%-opacity=\"(.-)\"")
         if f_opacity == nil then
             f_opacity = 1
         else
@@ -517,7 +517,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  stroke-opacity
-        local s_opacity = string.match(line,"%sstroke%-opacity=\"([^\"]+)\"")
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"(.-)\"")
         if s_opacity == nil then
             s_opacity = 1
         else
@@ -525,7 +525,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         -- stroke
-        local linewidth = string.match(line,"%sstroke-width=\"([^\"]+)\"")
+        local linewidth = string.match(line,"%sstroke-width=\"(.-)\"")
         if linewidth == nil then
             linewidth = 1
         else
@@ -533,7 +533,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         -- d (definition)
-        local pathdef = string.match(line, "%sd=\"([^\"]+)\"")
+        local pathdef = string.match(line, "%sd=\"(.-)\"")
 
         -- output
         local result = ""
@@ -973,16 +973,16 @@ function svglover._lineparse(line, bezier_depth, buffers)
         -- now, we get the parts
 
         --  x (x_offset)
-        local x_offset = string.match(line,"%sx=\"([^\"]+)\"")
+        local x_offset = string.match(line,"%sx=\"(.-)\"")
 
         --  y (y_offset)
-        local y_offset = string.match(line,"%sy=\"([^\"]+)\"")
+        local y_offset = string.match(line,"%sy=\"(.-)\"")
 
         --  width (width)
-        local width = string.match(line,"%swidth=\"([^\"]+)\"")
+        local width = string.match(line,"%swidth=\"(.-)\"")
 
         --  height (height)
-        local height = string.match(line,"%sheight=\"([^\"]+)\"")
+        local height = string.match(line,"%sheight=\"(.-)\"")
 
         --  fill (red/green/blue)
         local red, green, blue = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
@@ -1012,13 +1012,13 @@ function svglover._lineparse(line, bezier_depth, buffers)
 
         -- get parts
         --  cx (center_x)
-        local center_x = string.match(line,"%scx=\"([^\"]+)\"")
+        local center_x = string.match(line,"%scx=\"(.-)\"")
 
         --  cy (center_y)
-        local center_y = string.match(line,"%scy=\"([^\"]+)\"")
+        local center_y = string.match(line,"%scy=\"(.-)\"")
 
         --  r (radius, for a circle)
-        local radius = string.match(line,"%sr=\"([^\"]+)\"")
+        local radius = string.match(line,"%sr=\"(.-)\"")
 
         local radius_x
         local radius_y
@@ -1027,10 +1027,10 @@ function svglover._lineparse(line, bezier_depth, buffers)
             radius_y = radius
         else
             --  rx (radius_x, for an ellipse)
-            radius_x = string.match(line,"%srx=\"([^\"]+)\"")
+            radius_x = string.match(line,"%srx=\"(.-)\"")
 
             --  ry (radius_y, for an ellipse)
-            radius_y = string.match(line,"%sry=\"([^\"]+)\"")
+            radius_y = string.match(line,"%sry=\"(.-)\"")
         end
 
         --  fill (red/green/blue)
@@ -1061,11 +1061,11 @@ function svglover._lineparse(line, bezier_depth, buffers)
         --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
         --  colors
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"(.-)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"(.-)\""))
 
         --  opacity
-        local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
+        local opacity = string.match(line,"%sopacity=\"(.-)\"")
         if opacity == nil then
             opacity = 1
         else
@@ -1073,7 +1073,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  fill-opacity
-        local f_opacity = string.match(line,"%sfill%-opacity=\"([^\"]+)\"")
+        local f_opacity = string.match(line,"%sfill%-opacity=\"(.-)\"")
         if f_opacity == nil then
             f_opacity = 1
         else
@@ -1081,7 +1081,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  stroke-opacity
-        local s_opacity = string.match(line,"%sstroke%-opacity=\"([^\"]+)\"")
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"(.-)\"")
         if s_opacity == nil then
             s_opacity = 1
         else
@@ -1093,7 +1093,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
         
         --  points (vertices)
-        local vertices = string.match(line,"%spoints=\"([^\"]+)\"")
+        local vertices = string.match(line,"%spoints=\"(.-)\"")
         vertices = string.gsub(vertices,'^%s+','')
         vertices = string.gsub(vertices,'%s+$','')
         vertices = string.gsub(vertices,'%s+',',')
@@ -1129,11 +1129,11 @@ function svglover._lineparse(line, bezier_depth, buffers)
         --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
 
         --  colors
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"(.-)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"(.-)\""))
 
         --  opacity
-        local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
+        local opacity = string.match(line,"%sopacity=\"(.-)\"")
         if opacity == nil then
             opacity = 1
         else
@@ -1141,7 +1141,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  fill-opacity
-        local f_opacity = string.match(line,"%sfill%-opacity=\"([^\"]+)\"")
+        local f_opacity = string.match(line,"%sfill%-opacity=\"(.-)\"")
         if f_opacity == nil then
             f_opacity = 1
         else
@@ -1149,7 +1149,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
 
         --  stroke-opacity
-        local s_opacity = string.match(line,"%sstroke%-opacity=\"([^\"]+)\"")
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"(.-)\"")
         if s_opacity == nil then
             s_opacity = 1
         else
@@ -1161,7 +1161,7 @@ function svglover._lineparse(line, bezier_depth, buffers)
         end
         
         --  points (vertices)
-        local vertices = string.match(line,"%spoints=\"([^\"]+)\"")
+        local vertices = string.match(line,"%spoints=\"(.-)\"")
         vertices = string.gsub(vertices,'^%s+','')
         vertices = string.gsub(vertices,'%s+$','')
         vertices = string.gsub(vertices,'%s+',',')
