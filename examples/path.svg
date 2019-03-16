@@ -1,5 +1,5 @@
 <!-- This file contains code from https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/d -->
-<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 20 50" width="200" height="500" xmlns="http://www.w3.org/2000/svg">
     <g transform="scale(0.1 0.1)">
         <g transform="translate(0 0)">
             <!-- MoveTo and horizontal LineTo -->
