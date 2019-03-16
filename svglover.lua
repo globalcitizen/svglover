@@ -16,14 +16,14 @@ function svglover.load(svgfile)
     -- validate input
     --  file exists?
     if not love.filesystem.getInfo(svgfile) then
-            print("FATAL: file does not exist: '" .. svgfile .. "'")
-            os.exit()
+        print("FATAL: file does not exist: '" .. svgfile .. "'")
+        os.exit()
     end
     --  file is a roughly sane size?
     local size = love.filesystem.getInfo(svgfile).size
     if size == nil or size < 10 or size > 500000 then
-            print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
-            os.exit()
+        print("FATAL: file is not an expected size (0-500000 bytes): '" .. svgfile .. "'")
+        os.exit()
     end
 
     -- initialize return structure
