@@ -27,7 +27,12 @@ function svglover.load(svgfile)
     end
 
     -- initialize return structure
-    local svg = {width=0,height=0,drawcommands=''}
+    local svg = {
+        width = 0;
+        height = 0;
+        viewport = nil;
+        drawcommands ='';
+    }
 
     -- process input
     --  - first we read the whole file in to a string
@@ -47,6 +52,19 @@ function svglover.load(svgfile)
     --  - extract height and width
     svg.width = string.match(file_contents,"<svg[^>]+width=\"([0-9.]+)") or 1
     svg.height = string.match(file_contents,"<svg[^>]+height=\"([0-9.]+)") or 1
+
+    if string.find(file_contents, "<svg[^>]+viewBox=\"") then
+        local def = string.match(file_contents, "<svg[^>]+viewBox=\"([^\"]+)")
+        local next_num = string.gmatch(def, "%-?[^%s,%-]+")
+
+        svg.viewport = {
+            minx = tonumber(next_num());
+            miny = tonumber(next_num());
+            width = tonumber(next_num());
+            height = tonumber(next_num());
+        }
+    end
+
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
@@ -155,20 +173,31 @@ function svglover.draw()
             love.graphics.setColor(0,0,0,1)
             love.graphics.rectangle('fill',svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
         end
-        -- push graphics settings
-        love.graphics.push()
-        -- clip to the target region
-        love.graphics.setScissor(svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
-        -- draw in the target region
-        love.graphics.translate(svg.region_origin_x+svg.cx, svg.region_origin_y+svg.cy)
-        -- scale to the target region
-        love.graphics.scale(svg.sfx, svg.sfy)
-        -- draw
-        assert(loadstring (svg.drawcommands)) ()
-        -- disable clipping
-        love.graphics.setScissor()
-        -- reset graphics
-        love.graphics.pop()
+
+        -- a viewport width/height of 0 disables drawing
+        if svg.viewport == nil or (svg.viewport.width ~= 0 and svg.viewport.height ~= 0) then
+            -- push graphics settings
+            love.graphics.push()
+            -- clip to the target region
+            love.graphics.setScissor(svg.region_origin_x, svg.region_origin_y, svg.region_width, svg.region_height)
+            -- draw in the target region
+            love.graphics.translate(svg.region_origin_x+svg.cx, svg.region_origin_y+svg.cy)
+            -- scale to the target region
+            love.graphics.scale(svg.sfx, svg.sfy)
+
+            -- SVG viewBox handling
+            if svg.viewport ~= nil then
+                love.graphics.translate(-svg.viewport.minx, -svg.viewport.miny)
+                love.graphics.scale(1 / svg.viewport.width, 1 / svg.viewport.height)
+            end
+
+            -- draw
+            assert(loadstring (svg.drawcommands)) ()
+            -- disable clipping
+            love.graphics.setScissor()
+            -- reset graphics
+            love.graphics.pop()
+        end
     end
 end
 
