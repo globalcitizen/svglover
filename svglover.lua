@@ -202,9 +202,13 @@ function svglover.draw()
 end
 
 -- parse a color definition, returning the RGB components in the 0..1 range
-function svglover._colorparse(str)
-    if str == nil or str == "none" then
-        return nil
+function svglover._colorparse(str, default_r, default_g, default_b)
+    if str == nil then
+        return default_r, default_g, default_b
+    end
+
+    if str == "none" then
+        return nil, nil, nil
     end
 
     -- #FFFFFF
@@ -316,7 +320,7 @@ function svglover._lineparse(line)
         -- get the stuff
 
         --  colors (red/green/blue)
-        local f_red, f_green, f_blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        local f_red, f_green, f_blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
         local s_red, s_green, s_blue = svglover._colorparse(string.match(line,"stroke=\"([^\"]+)\""))
 
         --  opacity
@@ -543,7 +547,7 @@ function svglover._lineparse(line)
         local height = string.match(line," height=\"([^\"]+)\"")
 
         --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"([^\"]+)\"")
@@ -592,7 +596,7 @@ function svglover._lineparse(line)
         end
 
         --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
@@ -619,7 +623,7 @@ function svglover._lineparse(line)
         --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
         --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""))
+        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
 
         --  fill-opacity (alpha)
         local alpha = string.match(line,"opacity=\"(.-)\"")
