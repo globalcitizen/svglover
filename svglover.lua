@@ -340,7 +340,7 @@ function svglover.draw()
             -- SVG viewBox handling
             if svg.viewport ~= nil then
                 love.graphics.translate(-svg.viewport.minx, -svg.viewport.miny)
-                love.graphics.scale(1 / svg.viewport.width, 1 / svg.viewport.height)
+                love.graphics.scale(svg.width / svg.viewport.width, svg.height / svg.viewport.height)
             end
 
             -- draw
