@@ -1261,39 +1261,64 @@ function svglover._lineparse(line, bezier_depth, buffers)
         --    love.graphics.rotate( angle )
         --    love.graphics.scale( sx, sy )
         local result = "love.graphics.push()\n"
-        -- extract the goodies
-        --  translation offset
-        local offset_x, offset_y = string.match(line,"[ \"]translate.([^) ]+) ([^) ]+)")
-        --  rotation angle
-        local angle = string.match(line,"rotate.([^)]+)")
-        if angle ~= nil then
-            angle = math.rad(angle)    -- convert degrees to radians
-        end
-        --  scale
-        --  in error producing: love.graphics.scale(73 103,73 103)  ... from "scale(3 11)"
-        local scale_x = 1
-        local scale_y = 1
-        local scale_string = string.match(line,"scale.([^)]+)")
-        if scale_string ~= nil then
-            scale_x, scale_y = string.match(scale_string,"([^ ]+) ([^ ]+)")
-            if scale_x == nil then
-                scale_x = scale_string
-                scale_y = nil
+
+        -- transform
+        local transform = string.match(line, "%stransform=\"(.-)\"")
+
+        if transform ~= nil then
+            -- parse every command
+            for cmd, strargs in string.gmatch(transform, "%s*(.-)%s*%((.-)%)") do
+                local args = {}
+
+                -- parse command arguments
+                if strargs ~= nil and #strargs > 0 then
+                    for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
+                       table.insert(args, 1, tonumber(arg,10))
+                    end
+                end
+
+                -- translate
+                if cmd == "translate" then
+                    local x = table.remove(args)
+                    local y = table.remove(args) or 0
+
+                    result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
+
+                -- rotate
+                elseif cmd == "rotate" then
+                    local a = table.remove(args)
+                    local x = table.remove(args) or 0
+                    local y = table.remove(args) or 0
+
+                    if x ~= 0 and y ~= 0 then
+                        result = result .. "love.graphics.translate(" .. x .. ", " .. y .. ")\n"
+                    end
+
+                    result = result .. "love.graphics.rotate(" .. math.rad(a) .. ")\n"
+
+                    if x ~= 0 and y ~= 0 then
+                        result = result .. "love.graphics.translate(" .. (-x) .. ", " .. (-y) .. ")\n"
+                    end
+
+                -- scale
+                elseif cmd == "scale" then
+                    local x = table.remove(args)
+                    local y = table.remove(args)
+
+                    if y == nil then
+                        y = x
+                    end
+
+                    result = result .. "love.graphics.scale(" .. x .. ", " .. y .. ")\n"
+
+                else
+                    -- let em know what's missing!!!
+                    print("Unimplemented transform command: " .. cmd .. "!")
+                    os.exit()
+                end
             end
         end
 
-        -- output
-        if offset_x ~= nil and offset_y ~= nil then
-            result = result .. "love.graphics.translate(" .. offset_x .. "," .. offset_y .. ")\n"
-        end
-        if angle ~= nil then
-            result = result .. "love.graphics.rotate(" .. angle .. ")\n"
-        end
-        if scale_y ~= nil then
-            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n"
-        elseif scale_x ~= nil then
-            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n"
-        end
         return result
     else
         -- display issues so that those motivated to hack can do so ;)
