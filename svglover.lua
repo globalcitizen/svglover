@@ -985,19 +985,45 @@ function svglover._lineparse(line, bezier_depth, buffers)
         local height = string.match(line,"%sheight=\"(.-)\"")
 
         --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"(.-)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"(.-)\""))
 
-        --  fill-opacity (alpha)
-        local alpha = string.match(line,"%sopacity=\"([^\"]+)\"")
-        if alpha == nil then
-            alpha = 255
+        --  opacity
+        local opacity = string.match(line,"%sopacity=\"(.-)\"")
+        if opacity == nil then
+            opacity = 1
         else
-            alpha = tonumber(alpha,10)
+            opacity = tonumber(opacity,10)
+        end
+
+        --  fill-opacity
+        local f_opacity = string.match(line,"%sfill%-opacity=\"(.-)\"")
+        if f_opacity == nil then
+            f_opacity = 1
+        else
+            f_opacity = tonumber(f_opacity,10)
+        end
+
+        --  stroke-opacity
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"(.-)\"")
+        if s_opacity == nil then
+            s_opacity = 1
+        else
+            s_opacity = tonumber(s_opacity,10)
         end
 
         -- output
-        local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-        result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+        local result = ""
+
+        if f_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+        end
+
+        if s_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.rectangle(\"line\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+        end
 
         return result
 
@@ -1033,23 +1059,47 @@ function svglover._lineparse(line, bezier_depth, buffers)
             radius_y = string.match(line,"%sry=\"(.-)\"")
         end
 
-        --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
+        --  colors
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"(.-)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"(.-)\""))
 
-        --  fill-opacity (alpha)
-        local alpha = string.match(line,"%sopacity=\"(.-)\"")
-        if alpha == nil then
-            alpha = 1
+        --  opacity
+        local opacity = string.match(line,"%sopacity=\"(.-)\"")
+        if opacity == nil then
+            opacity = 1
         else
-            alpha = tonumber(alpha,10)
+            opacity = tonumber(opacity,10)
+        end
+
+        --  fill-opacity
+        local f_opacity = string.match(line,"%sfill%-opacity=\"(.-)\"")
+        if f_opacity == nil then
+            f_opacity = 1
+        else
+            f_opacity = tonumber(f_opacity,10)
+        end
+
+        --  stroke-opacity
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"(.-)\"")
+        if s_opacity == nil then
+            s_opacity = 1
+        else
+            s_opacity = tonumber(s_opacity,10)
         end
 
         -- output
-        local result = ''
-        if red ~= nil then
-            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
+        local result = ""
+
+        if f_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
         end
-        result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
+
+        if s_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.ellipse(\"line\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
+        end
+
         return result
 
     -- polygon (eg. triangle)
