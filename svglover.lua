@@ -271,12 +271,12 @@ function svglover._gensubpath(vertices, f_red, f_green, f_blue, f_opacity, s_red
     end
 
     local result = ""
-    -- result = result .. "local vertices = " .. svglover._unpackstr(vertices) .. "\n"
+    result = result .. "local vertices = {" .. svglover._unpackstr(vertices) .. "}\n"
 
     -- fill
     if f_red ~= nil and #vertices >= 6 then
         result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. f_opacity .. ")\n"
-        result = result .. "love.graphics.polygon(\"fill\", " .. svglover._unpackstr(vertices) .. ")\n"
+        result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
     end
 
     -- stroke
@@ -287,7 +287,7 @@ function svglover._gensubpath(vertices, f_red, f_green, f_blue, f_opacity, s_red
         if closed then
             result = result .. "love.graphics.polygon(\"line\", " .. svglover._unpackstr(vertices) .. ")\n"
         else
-            result = result .. "love.graphics.line(" .. svglover._unpackstr(vertices) .. ")\n"
+            result = result .. "love.graphics.line(vertices)\n"
         end
     end
 
