@@ -515,6 +515,25 @@ function svglover._lineparse(line, bezier_depth)
 
             -- cubic bezier curve (relative)
             elseif op == "c" then
+                while #args >= 6 do
+                    local x1 = cpx + table.remove(args)
+                    local y1 = cpy + table.remove(args)
+                    local x2 = cpx + table.remove(args)
+                    local y2 = cpy + table.remove(args)
+                    local x = cpx + table.remove(args)
+                    local y = cpy + table.remove(args)
+
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+                    curve:insertControlPoint(x2, y2)
+
+                    cpx = x
+                    cpy = y
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+                end
 
             -- smooth cubic Bézier curve
             elseif op == "S" then
