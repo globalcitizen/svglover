@@ -857,9 +857,63 @@ function svglover._lineparse(line, bezier_depth)
 
             -- smooth quadratic Bézier curve
             elseif op == "T" then
+                while #args >= 2 do
+                    local x = table.remove(args)
+                    local y = table.remove(args)
+
+                    -- calculate the control point
+                    local x1 = cpx + cpx - prev_ctrlx
+                    local y1 = cpy + cpy - prev_ctrly
+
+                    -- generate vertices
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+
+                    -- release object
+                    curve:release()
+
+                    -- move the current point
+                    cpx = x
+                    cpy = y
+
+                    -- remember the end control point for the next command
+                    prev_ctrlx = x1
+                    prev_ctrly = y1
+                end
 
             -- smooth quadratic Bézier curve (relative)
             elseif op == "t" then
+                while #args >= 2 do
+                    local x = cpx + table.remove(args)
+                    local y = cpy + table.remove(args)
+
+                    -- calculate the control point
+                    local x1 = cpx + cpx - prev_ctrlx
+                    local y1 = cpy + cpy - prev_ctrly
+
+                    -- generate vertices
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+
+                    -- release object
+                    curve:release()
+
+                    -- move the current point
+                    cpx = x
+                    cpy = y
+
+                    -- remember the end control point for the next command
+                    prev_ctrlx = x1
+                    prev_ctrly = y1
+                end
 
             -- arc to
             elseif op == "A" then
