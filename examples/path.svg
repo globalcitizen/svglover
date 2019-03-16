@@ -1,14 +1,35 @@
 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <path fill="none" stroke="#f00"
-    d="M 10,10 h 10
-       m  0,10 h 10
-       m  0,10 h 10
-       M 40,20 h 10
-       m  0,10 h 10
-       m  0,10 h 10
-       m  0,10 h 10
-       M 50,50 h 10
-       m-20,10 h 10
-       m-20,10 h 10
-       m-20,10 h 10" />
+    <g transform="translate(0 0) scale(0.1 0.1)">
+        <!-- MoveTo and horizontal LineTo -->
+        <path fill="none" stroke="#f00"
+            d="M 10,10 h 10
+                 m  0,10 h 10
+                 m  0,10 h 10
+                 M 40,20 h 10
+                 m  0,10 h 10
+                 m  0,10 h 10
+                 m  0,10 h 10
+                 M 50,50 h 10
+                 m-20,10 h 10
+                 m-20,10 h 10
+                 m-20,10 h 10" />
+    </g>
+    
+    <g transform="translate(0 10) scale(0.1 0.1)">
+        <!-- LineTo commands with absolute coordinates -->
+        <path fill="none" stroke="#f00"
+            d="M 10,10
+               L 90,90
+               V 10
+               H 50" />
+    </g>
+
+    <g transform="translate(10 10) scale(0.1 0.1)">
+        <!-- LineTo commands with relative coordinates -->
+        <path fill="none" stroke="#f00"
+            d="M 10,10
+               l 80,80
+               v -80
+               h -40" />
+    </g>
 </svg>
