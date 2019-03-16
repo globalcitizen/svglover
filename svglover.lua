@@ -180,7 +180,8 @@ function svglover.load(svgfile, bezier_depth)
         width = 0;
         height = 0;
         viewport = nil;
-        drawcommands ='';
+        buffers = {};
+        drawcommands = 'local buffers = ...\n';
     }
 
     -- process input
@@ -219,7 +220,7 @@ function svglover.load(svgfile, bezier_depth)
     --  - finally, loop over lines, appending to svg.drawcommands
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, bezier_depth)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, bezier_depth, svg.buffers)
     end
 
     -- remove duplicate newlines
@@ -343,7 +344,7 @@ function svglover.draw()
             end
 
             -- draw
-            assert(loadstring (svg.drawcommands)) ()
+            assert(loadstring (svg.drawcommands)) (svg.buffers)
             -- disable clipping
             love.graphics.setScissor()
             -- reset graphics
@@ -441,35 +442,34 @@ end
 
 -- generates LOVE code for a subpath
 function svglover._gensubpath(
-    vertices,
+    bufferid, vertexcount,
     f_red, f_green, f_blue, f_alpha, f_opacity,
     s_red, s_green, s_blue, s_alpha, s_opacity,
     opacity, linewidth, closed)
     if
         (f_red == nil and s_red == nil) or
-        (#vertices < 4)
+        (vertexcount < 4)
     then
         return ""
     end
 
     local result = ""
-    result = result .. "local vertices = {" .. svglover._unpackstr(vertices) .. "}\n"
 
     -- fill
-    if f_red ~= nil and #vertices >= 6 then
+    if f_red ~= nil and vertexcount >= 6 then
         result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-        result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
+        result = result .. "love.graphics.polygon(\"fill\", buffers[" .. bufferid .. "])\n"
     end
 
     -- stroke
-    if s_red ~= nil and #vertices >= 4 then
+    if s_red ~= nil and vertexcount >= 4 then
         result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
         result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
 
         if closed == true then
-            result = result .. "love.graphics.polygon(\"line\", " .. svglover._unpackstr(vertices) .. ")\n"
+            result = result .. "love.graphics.polygon(\"line\", buffers[" .. bufferid .. "])\n"
         else
-            result = result .. "love.graphics.line(vertices)\n"
+            result = result .. "love.graphics.line(buffers[" .. bufferid .. "])\n"
         end
     end
 
@@ -477,8 +477,7 @@ function svglover._gensubpath(
 end
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function svglover._lineparse(line, bezier_depth)
-
+function svglover._lineparse(line, bezier_depth, buffers)
     -- path
     if string.match(line, '<path%s') then
         -- SVG example:
@@ -561,8 +560,9 @@ function svglover._lineparse(line, bezier_depth)
             -- move to
             if op == "M" then
                 if #vertices > 0 then
+                    table.insert(buffers, vertices)
                     result = result .. svglover._gensubpath(
-                        vertices,
+                        #buffers, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -589,8 +589,9 @@ function svglover._lineparse(line, bezier_depth)
             -- move to (relative)
             elseif op == "m" then
                 if #vertices > 0 then
+                    table.insert(buffers, vertices)
                     result = result .. svglover._gensubpath(
-                        vertices,
+                        #buffers, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -923,8 +924,9 @@ function svglover._lineparse(line, bezier_depth)
             -- close shape (relative and absolute are the same)
             elseif op == "Z" or op == "z" then
                 if #vertices > 0 then
+                    table.insert(buffers, vertices)
                     result = result .. svglover._gensubpath(
-                        vertices,
+                        #buffers, #vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth, true
@@ -946,8 +948,9 @@ function svglover._lineparse(line, bezier_depth)
         end
 
         if #vertices > 0 then
+            table.insert(buffers, vertices)
             result = result .. svglover._gensubpath(
-                vertices,
+                #buffers, #vertices,
                 f_red, f_green, f_blue, f_alpha, f_opacity,
                 s_red, s_green, s_blue, s_alpha, s_opacity,
                 opacity, linewidth
@@ -1094,20 +1097,26 @@ function svglover._lineparse(line, bezier_depth)
         vertices = string.gsub(vertices,'%s+',',')
         vertices = string.gsub(vertices,',+',',')
 
+        local vertices_coords = {}
+        for n in string.gmatch(vertices, "([^,]+)") do
+            table.insert(vertices_coords, tonumber(n,10))
+        end
+        table.insert(buffers, vertices_coords)
+
         -- output
-        local result = "do\n"
-        result = result .. "local vertices = {" .. vertices .. "}"
+        local result = ""
+
         if f_red ~= nil then
             result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
+            result = result .. "love.graphics.polygon(\"fill\", buffers[" .. (#buffers) .. "])\n"
         end
 
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"line\", vertices)\n"
+            result = result .. "love.graphics.polygon(\"line\", buffers[" .. (#buffers) .. "])\n"
         end
         
-        return result .. "end\n"
+        return result
 
     -- polyline (eg. triangle, but not closed)
     elseif string.match(line,'<polyline%s') then
@@ -1156,21 +1165,26 @@ function svglover._lineparse(line, bezier_depth)
         vertices = string.gsub(vertices,'%s+',',')
         vertices = string.gsub(vertices,',+',',')
 
+        local vertices_coords = {}
+        for n in string.gmatch(vertices, "([^,]+)") do
+            table.insert(vertices_coords, tonumber(n,10))
+        end
+        table.insert(buffers, vertices_coords)
+
         -- output
-        local result = "do\n"
-        result = result .. "local vertices = {" .. vertices .. "}"
+        local result = ""
 
         if f_red ~= nil then
             result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
+            result = result .. "love.graphics.polygon(\"fill\", buffers[" .. (#buffers) .. "])\n"
         end
 
         if s_red ~= nil then
             result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.line(vertices)\n"
+            result = result .. "love.graphics.line(buffers[" .. (#buffers) .. "])\n"
         end
 
-        return result .. "end\n"
+        return result
 
     -- start or end svg etc.
     elseif  string.match(line,'</?svg') or
