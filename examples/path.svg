@@ -18,6 +18,13 @@
                    m-20,10 h 10
                    m-20,10 h 10" />
         </g>
+
+        <g transform="translate(150 50)">
+            <rect x="-30" y="-30" width="60" height="60" />
+
+            <rect x="-30" y="-30" width="60" height="60" fill="red"
+                  transform="skewX(30) translate(50 10)" />
+        </g>
         
         <g transform="translate(0 100)">
             <!-- LineTo commands with absolute coordinates -->
