@@ -52,7 +52,7 @@ function svglover.load(svgfile)
     --  - extract height and width
     svg.width = string.match(file_contents,"<svg[^>]+width=\"([0-9.]+)") or 1
     svg.height = string.match(file_contents,"<svg[^>]+height=\"([0-9.]+)") or 1
-
+    --  - get viewport
     if string.find(file_contents, "<svg[^>]+viewBox=\"") then
         local def = string.match(file_contents, "<svg[^>]+viewBox=\"([^\"]+)")
         local next_num = string.gmatch(def, "%-?[^%s,%-]+")
@@ -492,21 +492,39 @@ function svglover._lineparse(line)
                 end
 
             -- cubic bezier curve
+            elseif op == "C" then
+
+            -- cubic bezier curve (relative)
             elseif op == "c" then
 
             -- smooth cubic Bézier curve
+            elseif op == "S" then
+
+            -- smooth cubic Bézier curve (relative)
             elseif op == "s" then
 
             -- quadratic Bézier curve
+            elseif op == "Q" then
+
+            -- quadratic Bézier curve (relative)
             elseif op == "q" then
 
             -- smooth quadratic Bézier curve
+            elseif op == "T" then
+
+            -- smooth quadratic Bézier curve (relative)
             elseif op == "t" then
 
             -- arc to
+            elseif op == "A" then
+
+            -- arc to (relative)
             elseif op == "a" then
 
             -- close shape
+            elseif op == "Z" then
+
+            -- close shape (relative)
             elseif op == "z" then
 
             end
