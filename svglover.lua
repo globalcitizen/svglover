@@ -9,6 +9,155 @@ svglover
 local svglover = {}
 
 svglover.onscreen_svgs = {}
+svglover._colornames = {
+    aliceblue = {240,248,255,255};
+    antiquewhite = {250,235,215,255};
+    aqua = {0,255,255,255};
+    aquamarine = {127,255,212,255};
+    azure = {240,255,255,255};
+    beige = {245,245,220,255};
+    bisque = {255,228,196,255};
+    black = {0,0,0,255};
+    blanchedalmond = {255,235,205,255};
+    blue = {0,0,255,255};
+    blueviolet = {138,43,226,255};
+    brown = {165,42,42,255};
+    burlywood = {222,184,135,255};
+    cadetblue = {95,158,160,255};
+    chartreuse = {127,255,0,255};
+    chocolate = {210,105,30,255};
+    coral = {255,127,80,255};
+    cornflowerblue = {100,149,237,255};
+    cornsilk = {255,248,220,255};
+    crimson = {220,20,60,255};
+    cyan = {0,255,255,255};
+    darkblue = {0,0,139,255};
+    darkcyan = {0,139,139,255};
+    darkgoldenrod = {184,134,11,255};
+    darkgray = {169,169,169,255};
+    darkgreen = {0,100,0,255};
+    darkgrey = {169,169,169,255};
+    darkkhaki = {189,183,107,255};
+    darkmagenta = {139,0,139,255};
+    darkolivegreen = {85,107,47,255};
+    darkorange = {255,140,0,255};
+    darkorchid = {153,50,204,255};
+    darkred = {139,0,0,255};
+    darksalmon = {233,150,122,255};
+    darkseagreen = {143,188,143,255};
+    darkslateblue = {72,61,139,255};
+    darkslategray = {47,79,79,255};
+    darkslategrey = {47,79,79,255};
+    darkturquoise = {0,206,209,255};
+    darkviolet = {148,0,211,255};
+    deeppink = {255,20,147,255};
+    deepskyblue = {0,191,255,255};
+    dimgray = {105,105,105,255};
+    dimgrey = {105,105,105,255};
+    dodgerblue = {30,144,255,255};
+    firebrick = {178,34,34,255};
+    floralwhite = {255,250,240,255};
+    forestgreen = {34,139,34,255};
+    fuchsia = {255,0,255,255};
+    gainsboro = {220,220,220,255};
+    ghostwhite = {248,248,255,255};
+    gold = {255,215,0,255};
+    goldenrod = {218,165,32,255};
+    gray = {128,128,128,255};
+    green = {0,128,0,255};
+    greenyellow = {173,255,47,255};
+    grey = {128,128,128,255};
+    honeydew = {240,255,240,255};
+    hotpink = {255,105,180,255};
+    indianred = {205,92,92,255};
+    indigo = {75,0,130,255};
+    ivory = {255,255,240,255};
+    khaki = {240,230,140,255};
+    lavender = {230,230,250,255};
+    lavenderblush = {255,240,245,255};
+    lawngreen = {124,252,0,255};
+    lemonchiffon = {255,250,205,255};
+    lightblue = {173,216,230,255};
+    lightcoral = {240,128,128,255};
+    lightcyan = {224,255,255,255};
+    lightgoldenrodyellow = {250,250,210,255};
+    lightgray = {211,211,211,255};
+    lightgreen = {144,238,144,255};
+    lightgrey = {211,211,211,255};
+    lightpink = {255,182,193,255};
+    lightsalmon = {255,160,122,255};
+    lightseagreen = {32,178,170,255};
+    lightskyblue = {135,206,250,255};
+    lightslategray = {119,136,153,255};
+    lightslategrey = {119,136,153,255};
+    lightsteelblue = {176,196,222,255};
+    lightyellow = {255,255,224,255};
+    lime = {0,255,0,255};
+    limegreen = {50,205,50,255};
+    linen = {250,240,230,255};
+    magenta = {255,0,255,255};
+    maroon = {128,0,0,255};
+    mediumaquamarine = {102,205,170,255};
+    mediumblue = {0,0,205,255};
+    mediumorchid = {186,85,211,255};
+    mediumpurple = {147,112,219,255};
+    mediumseagreen = {60,179,113,255};
+    mediumslateblue = {123,104,238,255};
+    mediumspringgreen = {0,250,154,255};
+    mediumturquoise = {72,209,204,255};
+    mediumvioletred = {199,21,133,255};
+    midnightblue = {25,25,112,255};
+    mintcream = {245,255,250,255};
+    mistyrose = {255,228,225,255};
+    moccasin = {255,228,181,255};
+    navajowhite = {255,222,173,255};
+    navy = {0,0,128,255};
+    oldlace = {253,245,230,255};
+    olive = {128,128,0,255};
+    olivedrab = {107,142,35,255};
+    orange = {255,165,0,255};
+    orangered = {255,69,0,255};
+    orchid = {218,112,214,255};
+    palegoldenrod = {238,232,170,255};
+    palegreen = {152,251,152,255};
+    paleturquoise = {175,238,238,255};
+    palevioletred = {219,112,147,255};
+    papayawhip = {255,239,213,255};
+    peachpuff = {255,218,185,255};
+    peru = {205,133,63,255};
+    pink = {255,192,203,255};
+    plum = {221,160,221,255};
+    powderblue = {176,224,230,255};
+    purple = {128,0,128,255};
+    red = {255,0,0,255};
+    rosybrown = {188,143,143,255};
+    royalblue = {65,105,225,255};
+    saddlebrown = {139,69,19,255};
+    salmon = {250,128,114,255};
+    sandybrown = {244,164,96,255};
+    seagreen = {46,139,87,255};
+    seashell = {255,245,238,255};
+    sienna = {160,82,45,255};
+    silver = {192,192,192,255};
+    skyblue = {135,206,235,255};
+    slateblue = {106,90,205,255};
+    slategray = {112,128,144,255};
+    slategrey = {112,128,144,255};
+    snow = {255,250,250,255};
+    springgreen = {0,255,127,255};
+    steelblue = {70,130,180,255};
+    tan = {210,180,140,255};
+    teal = {0,128,128,255};
+    thistle = {216,191,216,255};
+    tomato = {255,99,71,255};
+    turquoise = {64,224,208,255};
+    violet = {238,130,238,255};
+    wheat = {245,222,179,255};
+    white = {255,255,255,255};
+    whitesmoke = {245,245,245,255};
+    yellow = {255,255,0,255};
+    yellowgreen = {154,205,50 ,255};
+}
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
@@ -203,23 +352,28 @@ function svglover.draw()
     end
 end
 
--- parse a color definition, returning the RGB components in the 0..1 range
-function svglover._colorparse(str, default_r, default_g, default_b)
+-- parse a color definition, returning the RGBA components in the 0..1 range
+function svglover._colorparse(str, default_r, default_g, default_b, default_a)
     if str == nil then
-        return default_r, default_g, default_b
+        return default_r, default_g, default_b, default_a
     end
 
     if str == "none" then
-        return nil, nil, nil
+        return nil, nil, nil, nil
     end
 
+    -- color name
+    if svglover._colornames[str] ~= nil then
+        local color = svglover._colornames[str]
+        return color[1] / 255, color[2] / 255, color[3] / 255, color[4] / 255
+
     -- #FFFFFF
-    if string.match(str,"#......") then
+    elseif string.match(str,"#......") then
         local red, green, blue = string.match(str,"#(..)(..)(..)")
         red = tonumber(red,16)/255
         green = tonumber(green,16)/255
         blue = tonumber(blue,16)/255
-        return red, green, blue
+        return red, green, blue, 1
 
     -- #FFF
     elseif string.match(str,"#...") then
@@ -227,27 +381,45 @@ function svglover._colorparse(str, default_r, default_g, default_b)
         red = tonumber(red,16)/15
         green = tonumber(green,16)/15
         blue = tonumber(blue,16)/15
-        return red, green, blue
+        return red, green, blue, 1
 
     -- rgb(255, 255, 255)
-    elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
+    elseif string.match(str,"rgb%(%s*%d+%s*,%s*%d+%s*,%s*%d+%s*%)") then
         local red, green, blue = string.match(str,"rgb%((%d+),%s*(%d+),%s*(%d+)%)")
         red = tonumber(red)/255
         green = tonumber(green)/255
         blue = tonumber(blue)/255
-        return red, green, blue
+        return red, green, blue, 1
 
     -- rgb(100%, 100%, 100%)
-    elseif string.match(str,"rgb%(%d+,%s*%d+,%s*%d+%)") then
-        local red, green, blue = string.match(str,"rgb%((%d+)%%,%s*(%d+)%%,%s*(%d+)%%%)")
+    elseif string.match(str,"rgb%(%s*%d+%%%s*,%s*%d+%%%s*,%s*%d+%%%s*%)") then
+        local red, green, blue = string.match(str,"rgb%(%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*%)")
         red = tonumber(red)/100
         green = tonumber(green)/100
         blue = tonumber(blue)/100
-        return red, green, blue
+        return red, green, blue, 1
+
+    -- rgba(255, 255, 255, 1.0)
+    elseif string.match(str,"rgba%(%s*%d+%s*,%s*%d+%s*,%s*%d+%s*,%s*[^%)%+s]+%s*%)") then
+        local red, green, blue, alpha = string.match(str,"rgba%(%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*,%s*([^%)%s]+)%s*%)")
+        red = tonumber(red)/255
+        green = tonumber(green)/255
+        blue = tonumber(blue)/255
+        return red, green, blue, tonumber(alpha,10)
+
+    -- rgba(100%, 100%, 100%, 1.0)
+    elseif string.match(str,"rgba%(%s*%d+%%%s*,%s*%d+%%%s*,%s*%d+%%%s*,%s*[^%)%s]+%s*%)") then
+        local red, green, blue, alpha = string.match(str,"rgba%(%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*(%d+)%%%s*,%s*([^%)%s]+)%s*%)")
+        red = tonumber(red)/100
+        green = tonumber(green)/100
+        blue = tonumber(blue)/100
+        return red, green, blue, tonumber(alpha,10)
 
     -- Any unsupported format
     else
-        return nil
+        -- let em know!!!
+        print("Unsupported color format: " .. str)
+        return nil, nil, nil, nil
     end
 end
 
@@ -268,7 +440,11 @@ function svglover._unpackstr(data)
 end
 
 -- generates LOVE code for a subpath
-function svglover._gensubpath(vertices, f_red, f_green, f_blue, f_opacity, s_red, s_green, s_blue, s_opacity, linewidth, closed)
+function svglover._gensubpath(
+    vertices,
+    f_red, f_green, f_blue, f_alpha, f_opacity,
+    s_red, s_green, s_blue, s_alpha, s_opacity,
+    opacity, linewidth, closed)
     if
         (f_red == nil and s_red == nil) or
         (#vertices < 4)
@@ -322,8 +498,8 @@ function svglover._lineparse(line, bezier_depth)
         -- get the stuff
 
         --  colors (red/green/blue)
-        local f_red, f_green, f_blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
-        local s_red, s_green, s_blue = svglover._colorparse(string.match(line,"stroke=\"([^\"]+)\""))
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
 
         --  opacity
         local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
@@ -388,9 +564,9 @@ function svglover._lineparse(line, bezier_depth)
                 if #vertices > 0 then
                     result = result .. svglover._gensubpath(
                         vertices,
-                        f_red, f_green, f_blue, f_opacity,
-                        s_red, s_green, s_blue, s_opacity,
-                        linewidth, closed
+                        f_red, f_green, f_blue, f_alpha, f_opacity,
+                        s_red, s_green, s_blue, s_alpha, s_opacity,
+                        opacity, linewidth, closed
                     )
                     vertices = {}
                 end
@@ -416,9 +592,9 @@ function svglover._lineparse(line, bezier_depth)
                 if #vertices > 0 then
                     result = result .. svglover._gensubpath(
                         vertices,
-                        f_red, f_green, f_blue, f_opacity,
-                        s_red, s_green, s_blue, s_opacity,
-                        linewidth, closed
+                        f_red, f_green, f_blue, f_alpha, f_opacity,
+                        s_red, s_green, s_blue, s_alpha, s_opacity,
+                        opacity, linewidth, closed
                     )
                     vertices = {}
                 end
@@ -659,9 +835,9 @@ function svglover._lineparse(line, bezier_depth)
         if #vertices > 0 then
             result = result .. svglover._gensubpath(
                 vertices,
-                f_red, f_green, f_blue, f_opacity,
-                s_red, s_green, s_blue, s_opacity,
-                linewidth, closed
+                f_red, f_green, f_blue, f_alpha, f_opacity,
+                s_red, s_green, s_blue, s_alpha, s_opacity,
+                opacity, linewidth, closed
             )
         end
 
@@ -753,26 +929,51 @@ function svglover._lineparse(line, bezier_depth)
         -- output
         local result = ''
         if red ~= nil then
-            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n";
+            result = result .. "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
         end
-        result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n";
+        result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
         return result
 
     -- polygon (eg. triangle)
     elseif string.match(line,'<polygon%s') then
         -- SVG example:
-        --   <polygon fill="--6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+        --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
         -- lua example:
         --   love.graphics.setColor( red, green, blue, alpha )
         --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
-        --  fill (red/green/blue)
-        local red, green, blue = svglover._colorparse(string.match(line,"fill=\"([^\"]+)\""), 0, 0, 0, 1)
+        --  colors
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
 
-        --  fill-opacity (alpha)
-        local alpha = string.match(line,"opacity=\"(.-)\"")
-        alpha = tonumber(alpha,10)
+        --  opacity
+        local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
+        if opacity == nil then
+            opacity = 1
+        else
+            opacity = tonumber(opacity,10)
+        end
 
+        --  fill-opacity
+        local f_opacity = string.match(line,"%sfill%-opacity=\"([^\"]+)\"")
+        if f_opacity == nil then
+            f_opacity = 1
+        else
+            f_opacity = tonumber(f_opacity,10)
+        end
+
+        --  stroke-opacity
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"([^\"]+)\"")
+        if s_opacity == nil then
+            s_opacity = 1
+        else
+            s_opacity = tonumber(s_opacity,10)
+        end
+
+        if f_red == nil and s_red == nil then
+            return ""
+        end
+        
         --  points (vertices)
         local vertices = string.match(line,"%spoints=\"([^\"]+)\"")
         vertices = string.gsub(vertices,'^%s+','')
@@ -781,11 +982,82 @@ function svglover._lineparse(line, bezier_depth)
         vertices = string.gsub(vertices,',+',',')
 
         -- output
+        local result = "do\n"
+        result = result .. "local vertices = {" .. vertices .. "}"
+        if f_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
+        end
+
+        if s_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.polygon(\"line\", vertices)\n"
+        end
+        
+        return result .. "end\n"
+
+    -- polyline (eg. triangle, but not closed)
+    elseif string.match(line,'<polyline%s') then
+        -- SVG example:
+        --   <polyline fill="#6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+        -- lua example:
         --   love.graphics.setColor( red, green, blue, alpha )
-        local result = "love.graphics.setColor(" .. red .. "," .. green .. "," .. blue .. "," .. alpha .. ")\n"
-        --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
-        result = result .. "love.graphics.polygon(\"fill\",{" .. vertices .. "})\n";
-        return result
+        --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
+
+        --  colors
+        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(string.match(line,"%sfill=\"([^\"]+)\""), 0, 0, 0, 1)
+        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(string.match(line,"%sstroke=\"([^\"]+)\""), nil, nil, nil, 1)
+
+        --  opacity
+        local opacity = string.match(line,"%sopacity=\"([^\"]+)\"")
+        if opacity == nil then
+            opacity = 1
+        else
+            opacity = tonumber(opacity,10)
+        end
+
+        --  fill-opacity
+        local f_opacity = string.match(line,"%sfill%-opacity=\"([^\"]+)\"")
+        if f_opacity == nil then
+            f_opacity = 1
+        else
+            f_opacity = tonumber(f_opacity,10)
+        end
+
+        --  stroke-opacity
+        local s_opacity = string.match(line,"%sstroke%-opacity=\"([^\"]+)\"")
+        if s_opacity == nil then
+            s_opacity = 1
+        else
+            s_opacity = tonumber(s_opacity,10)
+        end
+
+        if f_red == nil and s_red == nil then
+            return ""
+        end
+        
+        --  points (vertices)
+        local vertices = string.match(line,"%spoints=\"([^\"]+)\"")
+        vertices = string.gsub(vertices,'^%s+','')
+        vertices = string.gsub(vertices,'%s+$','')
+        vertices = string.gsub(vertices,'%s+',',')
+        vertices = string.gsub(vertices,',+',',')
+
+        -- output
+        local result = "do\n"
+        result = result .. "local vertices = {" .. vertices .. "}"
+
+        if f_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
+        end
+
+        if s_red ~= nil then
+            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+            result = result .. "love.graphics.line(vertices)\n"
+        end
+
+        return result .. "end\n"
 
     -- start or end svg etc.
     elseif  string.match(line,'</?svg') or
