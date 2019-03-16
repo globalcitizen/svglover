@@ -590,6 +590,36 @@ function svglover._lineparse(line, bezier_depth)
 
             -- smooth cubic Bézier curve (relative)
             elseif op == "s" then
+                while #args >= 4 do
+                    local x2 = cpx + table.remove(args)
+                    local y2 = cpy + table.remove(args)
+                    local x = cpx + table.remove(args)
+                    local y = cpy + table.remove(args)
+
+                    -- calculate the start control point
+                    local x1 = cpx + cpx - prev_x2
+                    local y1 = cpy + cpy - prev_y2
+
+                    -- generate vertices
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+                    curve:insertControlPoint(x2, y2)
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+
+                    -- release object
+                    curve:release()
+
+                    -- move the current point
+                    cpx = x
+                    cpy = y
+
+                    -- remember the end control point for the next command
+                    prev_x2 = x2
+                    prev_y2 = y2
+                end
 
             -- quadratic Bézier curve
             elseif op == "Q" then
