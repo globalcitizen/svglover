@@ -27,7 +27,7 @@ function love.load()
 	-- svglover.display(pic6,1120,100,300,750,true,{0,0,0,255},3)
 	
 	local pic7 = svglover.load('examples/path.svg')
-	svglover.display(pic7,0,0,1024,1024,false)
+	svglover.display(pic7,50,50,1000,1000,false)
 end
 
 function love.draw()

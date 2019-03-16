@@ -466,7 +466,7 @@ function svglover._gensubpath(
         result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
         result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
 
-        if closed then
+        if closed == true then
             result = result .. "love.graphics.polygon(\"line\", " .. svglover._unpackstr(vertices) .. ")\n"
         else
             result = result .. "love.graphics.line(vertices)\n"
@@ -545,7 +545,6 @@ function svglover._lineparse(line, bezier_depth)
         local cpy = 0
         local prev_ctrlx = 0
         local prev_ctrly = 0
-        local closed = false
         local vertices = {}
 
         --  iterate through all dem commands
@@ -566,7 +565,7 @@ function svglover._lineparse(line, bezier_depth)
                         vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
-                        opacity, linewidth, closed
+                        opacity, linewidth
                     )
                     vertices = {}
                 end
@@ -594,7 +593,7 @@ function svglover._lineparse(line, bezier_depth)
                         vertices,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
-                        opacity, linewidth, closed
+                        opacity, linewidth
                     )
                     vertices = {}
                 end
@@ -921,12 +920,22 @@ function svglover._lineparse(line, bezier_depth)
             -- arc to (relative)
             elseif op == "a" then
 
-            -- close shape
-            elseif op == "Z" then
+            -- close shape (relative and absolute are the same)
+            elseif op == "Z" or op == "z" then
+                if #vertices > 0 then
+                    result = result .. svglover._gensubpath(
+                        vertices,
+                        f_red, f_green, f_blue, f_alpha, f_opacity,
+                        s_red, s_green, s_blue, s_alpha, s_opacity,
+                        opacity, linewidth, true
+                    )
+                end
 
-            -- close shape (relative)
-            elseif op == "z" then
+                cpx = ipx
+                cpy = ipy
 
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
             end
 
             -- if the command wasn't a curve command, set prev_ctrlx and prev_ctrly to cpx and cpy
@@ -941,7 +950,7 @@ function svglover._lineparse(line, bezier_depth)
                 vertices,
                 f_red, f_green, f_blue, f_alpha, f_opacity,
                 s_red, s_green, s_blue, s_alpha, s_opacity,
-                opacity, linewidth, closed
+                opacity, linewidth
             )
         end
 
