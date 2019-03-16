@@ -829,6 +829,31 @@ function svglover._lineparse(line, bezier_depth)
 
             -- quadratic Bézier curve (relative)
             elseif op == "q" then
+                while #args >= 4 do
+                    local x1 = cpx + table.remove(args)
+                    local y1 = cpy + table.remove(args)
+                    local x = cpx + table.remove(args)
+                    local y = cpy + table.remove(args)
+
+                    -- generate vertices
+                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                    curve:insertControlPoint(x1, y1)
+
+                    for _, v in ipairs(curve:render(bezier_depth)) do
+                        table.insert(vertices, v)
+                    end
+
+                    -- release object
+                    curve:release()
+
+                    -- move the current point
+                    cpx = x
+                    cpy = y
+
+                    -- remember the end control point for the next command
+                    prev_ctrlx = x1
+                    prev_ctrly = y1
+                end
 
             -- smooth quadratic Bézier curve
             elseif op == "T" then
