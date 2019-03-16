@@ -457,13 +457,13 @@ function svglover._gensubpath(
 
     -- fill
     if f_red ~= nil and #vertices >= 6 then
-        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. f_opacity .. ")\n"
+        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
         result = result .. "love.graphics.polygon(\"fill\", vertices)\n"
     end
 
     -- stroke
     if s_red ~= nil and #vertices >= 4 then
-        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. s_opacity .. ")\n"
+        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
         result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
 
         if closed then
@@ -1111,9 +1111,9 @@ function svglover._lineparse(line, bezier_depth)
             result = result .. "love.graphics.rotate(" .. angle .. ")\n"
         end
         if scale_y ~= nil then
-            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n";
+            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_y .. ")\n"
         elseif scale_x ~= nil then
-            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n";
+            result = result .. "love.graphics.scale(" .. scale_x .. "," .. scale_x .. ")\n"
         end
         return result
     else
