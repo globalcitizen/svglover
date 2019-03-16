@@ -38,7 +38,7 @@ function svglover.load(svgfile)
         file_contents = love.math.decompress(file_contents,'zlib')
     end
     --  - remove all newlines
-    file_contents = string.gsub(file_contents,"\n","")
+    file_contents = string.gsub(file_contents,"\r?\n","")
     --  - insert newline after all tags
     file_contents = string.gsub(file_contents,">",">\n")
     --  - flush blank lines
