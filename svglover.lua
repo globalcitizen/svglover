@@ -222,6 +222,7 @@ function svglover.load(svgfile, options)
     --  - finally, loop over lines, appending to svg.drawcommands
     local state = {
         parent_attr_stack = {};
+        ids = {};
     }
 
     for line in string.gmatch(file_contents, "[^\n]+") do
@@ -624,830 +625,13 @@ function svglover._lineparse(state, line, extdata, options)
         bezier_depth = 5
     end
 
-    -- path
-    if string.match(line, '<path%s') then
-        -- SVG example:
-        --   <path d="M 10,30
-        --            A 20,20 0,0,1 50,30
-        --            A 20,20 0,0,1 90,30
-        --            Q 90,60 50,90
-        --            Q 10,60 10,30 z"/>
-        -- lua example:
-        --   do
-        --   local vertices = {60,40,70,40}
-        --   love.graphics.setColor(r,g,b,a)
-        --   love.graphics.setLineWidth(width)
-        --   love.graphics.line(vertices)
-        --   end
-
-        -- get the stuff
-        local attr = svglover._getattributes(line, parent_attr)
-
-        --  colors (red/green/blue)
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-        --  opacity
-        local opacity = attr["opacity"]
-        if opacity == nil then
-            opacity = 1
-        else
-            opacity = tonumber(opacity,10)
-        end
-
-        --  fill-opacity
-        local f_opacity = attr["fill-opacity"]
-        if f_opacity == nil then
-            f_opacity = 1
-        else
-            f_opacity = tonumber(f_opacity,10)
-        end
-
-        --  stroke-opacity
-        local s_opacity = attr["stroke-opacity"]
-        if s_opacity == nil then
-            s_opacity = 1
-        else
-            s_opacity = tonumber(s_opacity,10)
-        end
-
-        -- stroke
-        local linewidth = attr["stroke-width"]
-        if linewidth == nil then
-            linewidth = 1
-        else
-            linewidth = tonumber(linewidth,10)
-        end
-
-        -- d (definition)
-        local pathdef = attr["d"]
-
-        -- output
-        local result = ""
-
-        local ipx = 0
-        local ipy = 0
-        local cpx = 0
-        local cpy = 0
-        local prev_ctrlx = 0
-        local prev_ctrly = 0
-        local vertices = {}
-
-        --  iterate through all dem commands
-        for op, strargs in string.gmatch(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*([^MmLlHhVvCcSsQqTtAaZz]*)%s*") do
-            local args = {}
-
-            -- parse command arguments
-            if strargs ~= nil and #strargs > 0 then
-                for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
-                   table.insert(args, 1, tonumber(arg,10))
-                end
-            end
-
-            -- move to
-            if op == "M" then
-                if #vertices > 0 then
-                    table.insert(extdata, vertices)
-                    result = result .. svglover._gensubpath(
-                        options, extdata, #extdata,
-                        f_red, f_green, f_blue, f_alpha, f_opacity,
-                        s_red, s_green, s_blue, s_alpha, s_opacity,
-                        opacity, linewidth
-                    )
-                    vertices = {}
-                end
-
-                ipx = table.remove(args)
-                ipy = table.remove(args)
-                cpx = ipx
-                cpy = ipy
-
-                table.insert(vertices, cpx)
-                table.insert(vertices, cpy)
-
-                while #args >= 2 do
-                    cpx = table.remove(args)
-                    cpy = table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- move to (relative)
-            elseif op == "m" then
-                if #vertices > 0 then
-                    table.insert(extdata, vertices)
-                    result = result .. svglover._gensubpath(
-                        options, extdata, #extdata,
-                        f_red, f_green, f_blue, f_alpha, f_opacity,
-                        s_red, s_green, s_blue, s_alpha, s_opacity,
-                        opacity, linewidth
-                    )
-                    vertices = {}
-                end
-
-                ipx = cpx + table.remove(args)
-                ipy = cpy + table.remove(args)
-                cpx = ipx
-                cpy = ipy
-
-                table.insert(vertices, cpx)
-                table.insert(vertices, cpy)
-
-                while #args >= 2 do
-                    cpx = cpx + table.remove(args)
-                    cpy = cpy + table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to
-            elseif op == "L" then
-                while #args >= 2 do
-                    cpx = table.remove(args)
-                    cpy = table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to (relative)
-            elseif op == "l" then
-                while #args >= 2 do
-                    cpx = cpx + table.remove(args)
-                    cpy = cpy + table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to (horizontal)
-            elseif op == "H" then
-                while #args >= 1 do
-                    cpx = table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to (horizontal, relative)
-            elseif op == "h" then
-                while #args >= 1 do
-                    cpx = cpx + table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to (vertical)
-            elseif op == "V" then
-                while #args >= 1 do
-                    cpy = table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- line to (vertical, relative)
-            elseif op == "v" then
-                while #args >= 1 do
-                    cpy = cpy + table.remove(args)
-
-                    table.insert(vertices, cpx)
-                    table.insert(vertices, cpy)
-                end
-
-            -- cubic bezier curve
-            elseif op == "C" then
-                while #args >= 6 do
-                    local x1 = table.remove(args)
-                    local y1 = table.remove(args)
-                    local x2 = table.remove(args)
-                    local y2 = table.remove(args)
-                    local x = table.remove(args)
-                    local y = table.remove(args)
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-                    curve:insertControlPoint(x2, y2)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x2
-                    prev_ctrly = y2
-                end
-
-            -- cubic bezier curve (relative)
-            elseif op == "c" then
-                while #args >= 6 do
-                    local x1 = cpx + table.remove(args)
-                    local y1 = cpy + table.remove(args)
-                    local x2 = cpx + table.remove(args)
-                    local y2 = cpy + table.remove(args)
-                    local x = cpx + table.remove(args)
-                    local y = cpy + table.remove(args)
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-                    curve:insertControlPoint(x2, y2)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x2
-                    prev_ctrly = y2
-                end
-
-            -- smooth cubic Bézier curve
-            elseif op == "S" then
-                while #args >= 4 do
-                    local x2 = table.remove(args)
-                    local y2 = table.remove(args)
-                    local x = table.remove(args)
-                    local y = table.remove(args)
-
-                    -- calculate the start control point
-                    local x1 = cpx + cpx - prev_ctrlx
-                    local y1 = cpy + cpy - prev_ctrly
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-                    curve:insertControlPoint(x2, y2)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x2
-                    prev_ctrly = y2
-                end
-
-            -- smooth cubic Bézier curve (relative)
-            elseif op == "s" then
-                while #args >= 4 do
-                    local x2 = cpx + table.remove(args)
-                    local y2 = cpy + table.remove(args)
-                    local x = cpx + table.remove(args)
-                    local y = cpy + table.remove(args)
-
-                    -- calculate the start control point
-                    local x1 = cpx + cpx - prev_ctrlx
-                    local y1 = cpy + cpy - prev_ctrly
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-                    curve:insertControlPoint(x2, y2)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x2
-                    prev_ctrly = y2
-                end
-
-            -- quadratic Bézier curve
-            elseif op == "Q" then
-                while #args >= 4 do
-                    local x1 = table.remove(args)
-                    local y1 = table.remove(args)
-                    local x = table.remove(args)
-                    local y = table.remove(args)
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x1
-                    prev_ctrly = y1
-                end
-
-            -- quadratic Bézier curve (relative)
-            elseif op == "q" then
-                while #args >= 4 do
-                    local x1 = cpx + table.remove(args)
-                    local y1 = cpy + table.remove(args)
-                    local x = cpx + table.remove(args)
-                    local y = cpy + table.remove(args)
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x1
-                    prev_ctrly = y1
-                end
-
-            -- smooth quadratic Bézier curve
-            elseif op == "T" then
-                while #args >= 2 do
-                    local x = table.remove(args)
-                    local y = table.remove(args)
-
-                    -- calculate the control point
-                    local x1 = cpx + cpx - prev_ctrlx
-                    local y1 = cpy + cpy - prev_ctrly
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x1
-                    prev_ctrly = y1
-                end
-
-            -- smooth quadratic Bézier curve (relative)
-            elseif op == "t" then
-                while #args >= 2 do
-                    local x = cpx + table.remove(args)
-                    local y = cpy + table.remove(args)
-
-                    -- calculate the control point
-                    local x1 = cpx + cpx - prev_ctrlx
-                    local y1 = cpy + cpy - prev_ctrly
-
-                    -- generate vertices
-                    local curve = love.math.newBezierCurve(cpx, cpy, x, y)
-                    curve:insertControlPoint(x1, y1)
-
-                    for _, v in ipairs(curve:render(bezier_depth)) do
-                        table.insert(vertices, v)
-                    end
-
-                    -- release object
-                    curve:release()
-
-                    -- move the current point
-                    cpx = x
-                    cpy = y
-
-                    -- remember the end control point for the next command
-                    prev_ctrlx = x1
-                    prev_ctrly = y1
-                end
-
-            -- arc to
-            elseif op == "A" then
-                print("ArcTo not implemented")
-
-            -- arc to (relative)
-            elseif op == "a" then
-                print("Relative ArcTo not implemented")
-
-            -- close shape (relative and absolute are the same)
-            elseif op == "Z" or op == "z" then
-                if #vertices > 0 then
-                    table.insert(extdata, vertices)
-                    result = result .. svglover._gensubpath(
-                        options, extdata, #extdata,
-                        f_red, f_green, f_blue, f_alpha, f_opacity,
-                        s_red, s_green, s_blue, s_alpha, s_opacity,
-                        opacity, linewidth, true
-                    )
-                end
-
-                cpx = ipx
-                cpy = ipy
-
-                table.insert(vertices, cpx)
-                table.insert(vertices, cpy)
-            end
-
-            -- if the command wasn't a curve command, set prev_ctrlx and prev_ctrly to cpx and cpy
-            if not string.match(op, "[CcSsQqTt]") then
-                prev_ctrlx = cpx
-                prev_ctrly = cpy
-            end
-        end
-
-        if #vertices > 0 then
-            table.insert(extdata, vertices)
-            result = result .. svglover._gensubpath(
-                options, extdata, #extdata,
-                f_red, f_green, f_blue, f_alpha, f_opacity,
-                s_red, s_green, s_blue, s_alpha, s_opacity,
-                opacity, linewidth
-            )
-        end
-
-        if attr["transform"] ~= nil then
-            result =
-                "love.graphics.push()\n" ..
-                svglover._parsetransform(attr["transform"], extdata) ..
-                result ..
-                "love.graphics.pop()\n"
-        end
-
-        return result
-
-    -- rectangle
-    elseif string.match(line,'<rect%s') then
-        -- SVG example:
-        --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
-        --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" />
-        -- lua example:
-        --   love.graphics.setColor( red, green, blue, alpha )
-        --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
-
-        -- now, we get the parts
-        local attr = svglover._getattributes(line, parent_attr)
-
-        --  x (x_offset)
-        local x_offset = attr["x"]
-
-        --  y (y_offset)
-        local y_offset = attr["y"]
-
-        --  width (width)
-        local width = attr["width"]
-
-        --  height (height)
-        local height = attr["height"]
-
-        --  fill (red/green/blue)
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-        --  opacity
-        local opacity = attr["opacity"]
-        if opacity == nil then
-            opacity = 1
-        else
-            opacity = tonumber(opacity,10)
-        end
-
-        --  fill-opacity
-        local f_opacity = attr["fill-opacity"]
-        if f_opacity == nil then
-            f_opacity = 1
-        else
-            f_opacity = tonumber(f_opacity,10)
-        end
-
-        --  stroke-opacity
-        local s_opacity = attr["stroke-opacity"]
-        if s_opacity == nil then
-            s_opacity = 1
-        else
-            s_opacity = tonumber(s_opacity,10)
-        end
-
-        -- output
-        local result = ""
-
-        if f_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
-        end
-
-        if s_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.rectangle(\"line\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
-        end
-
-        if attr["transform"] ~= nil then
-            result =
-                "love.graphics.push()\n" ..
-                svglover._parsetransform(attr["transform"], extdata) ..
-                result ..
-                "love.graphics.pop()\n"
-        end
-
-        return result
-
-    -- ellipse or circle
-    elseif string.match(line,'<ellipse%s') or string.match(line,'<circle%s') then
-        -- SVG example:
-        --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
-        --   <circle cx="114.279" cy="10.335" r="10"/>
-        -- lua example:
-        --   love.graphics.setColor( red, green, blue, alpha )
-        --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
-
-        -- get attributes
-        local attr = svglover._getattributes(line, parent_attr)
-
-        --  cx (center_x)
-        local center_x = attr["cx"]
-
-        --  cy (center_y)
-        local center_y = attr["cy"]
-
-        --  r (radius, for a circle)
-        local radius = attr["r"]
-
-        local radius_x
-        local radius_y
-        if radius ~= nil then
-            radius_x = radius
-            radius_y = radius
-        else
-            --  rx (radius_x, for an ellipse)
-            radius_x = attr["rx"]
-
-            --  ry (radius_y, for an ellipse)
-            radius_y = attr["ry"]
-        end
-
-        --  colors
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-        --  opacity
-        local opacity = attr["opacity"]
-        if opacity == nil then
-            opacity = 1
-        else
-            opacity = tonumber(opacity,10)
-        end
-
-        --  fill-opacity
-        local f_opacity = attr["fill-opacity"]
-        if f_opacity == nil then
-            f_opacity = 1
-        else
-            f_opacity = tonumber(f_opacity,10)
-        end
-
-        --  stroke-opacity
-        local s_opacity = attr["stroke-opacity"]
-        if s_opacity == nil then
-            s_opacity = 1
-        else
-            s_opacity = tonumber(s_opacity,10)
-        end
-
-        -- output
-        local result = ""
-
-        if f_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
-        end
-
-        if s_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.ellipse(\"line\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
-        end
-
-        if attr["transform"] ~= nil then
-            result =
-                "love.graphics.push()\n" ..
-                svglover._parsetransform(attr["transform"], extdata) ..
-                result ..
-                "love.graphics.pop()\n"
-        end
-
-        return result
-
-    -- polygon (eg. triangle)
-    elseif string.match(line,'<polygon%s') then
-        -- SVG example:
-        --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
-        -- lua example:
-        --   love.graphics.setColor( red, green, blue, alpha )
-        --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
-
-        -- get attributes
-        local attr = svglover._getattributes(line, parent_attr)
-
-        --  colors
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-        --  opacity
-        local opacity = attr["opacity"]
-        if opacity == nil then
-            opacity = 1
-        else
-            opacity = tonumber(opacity,10)
-        end
-
-        --  fill-opacity
-        local f_opacity = attr["fill-opacity"]
-        if f_opacity == nil then
-            f_opacity = 1
-        else
-            f_opacity = tonumber(f_opacity,10)
-        end
-
-        --  stroke-opacity
-        local s_opacity = attr["stroke-opacity"]
-        if s_opacity == nil then
-            s_opacity = 1
-        else
-            s_opacity = tonumber(s_opacity,10)
-        end
-
-        if f_red == nil and s_red == nil then
-            return ""
-        end
-
-        --  stroke-width
-        local linewidth = attr["stroke-width"]
-        if linewidth == nil then
-            linewidth = 1
-        else
-            linewidth = tonumber(linewidth,10)
-        end
-
-        --  points (vertices)
-        local vertices = attr["points"]
-
-        local vertices_coords = {}
-        for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
-            table.insert(vertices_coords, tonumber(n,10))
-        end
-        table.insert(extdata, vertices_coords)
-
-        -- output
-        local result = ""
-
-        result = result .. svglover._gensubpath(
-            options, extdata, #extdata,
-            f_red, f_green, f_blue, f_alpha, f_opacity,
-            s_red, s_green, s_blue, s_alpha, s_opacity,
-            opacity, linewidth, true
-        )
-
-        if attr["transform"] ~= nil then
-            result =
-                "love.graphics.push()\n" ..
-                svglover._parsetransform(attr["transform"], extdata) ..
-                result ..
-                "love.graphics.pop()\n"
-        end
-
-        return result
-
-    -- polyline (eg. triangle, but not closed)
-    elseif string.match(line,'<polyline%s') then
-        -- SVG example:
-        --   <polyline fill="#6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
-        -- lua example:
-        --   love.graphics.setColor( red, green, blue, alpha )
-        --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
-
-        -- get attributes
-        local attr = svglover._getattributes(line, parent_attr)
-
-        --  colors
-        local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-        local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-        --  opacity
-        local opacity = attr["opacity"]
-        if opacity == nil then
-            opacity = 1
-        else
-            opacity = tonumber(opacity,10)
-        end
-
-        --  fill-opacity
-        local f_opacity = attr["fill-opacity"]
-        if f_opacity == nil then
-            f_opacity = 1
-        else
-            f_opacity = tonumber(f_opacity,10)
-        end
-
-        --  stroke-opacity
-        local s_opacity = attr["stroke-opacity"]
-        if s_opacity == nil then
-            s_opacity = 1
-        else
-            s_opacity = tonumber(s_opacity,10)
-        end
-
-        if f_red == nil and s_red == nil then
-            return ""
-        end
-
-        --  stroke-width
-        local linewidth = attr["stroke-width"]
-        if linewidth == nil then
-            linewidth = 1
-        else
-            linewidth = tonumber(linewidth,10)
-        end
-
-        --  points (vertices)
-        local vertices = attr["points"]
-
-        local vertices_coords = {}
-        for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
-            table.insert(vertices_coords, tonumber(n,10))
-        end
-        table.insert(extdata, vertices_coords)
-
-        -- output
-        local result = ""
-
-        result = result .. svglover._gensubpath(
-            options, extdata, #extdata,
-            f_red, f_green, f_blue, f_alpha, f_opacity,
-            s_red, s_green, s_blue, s_alpha, s_opacity,
-            opacity, linewidth, false -- < that's the only difference between <polygon> and <polyline>
-        )
-
-        if attr["transform"] ~= nil then
-            result =
-                "love.graphics.push()\n" ..
-                svglover._parsetransform(attr["transform"], extdata) ..
-                result ..
-                "love.graphics.pop()\n"
-        end
-
-        return result
-
     -- start or end svg etc.
-    elseif  string.match(line,'</?svg') or
-        string.match(line,'<.xml') or
-        string.match(line,'<!--') or
-        string.match(line,'</?title') or
-        string.match(line,'<!DOCTYPE') then
+    if  string.match(line, '</?svg') or
+        string.match(line, '<.xml') or
+        string.match(line, '<!--') or
+        string.match(line, '</?title') or
+        string.match(line, '<!DOCTYPE') then
         -- ignore
-
-    -- end group
-    elseif string.match(line,'</g>') then
-        table.remove(state.parent_attr_stack)
-        return 'love.graphics.pop()'
 
     -- start group
     elseif string.match(line,'<g[>%s]') then
@@ -1480,11 +664,35 @@ function svglover._lineparse(state, line, extdata, options)
         end
 
         return result
+
+    -- end group
+    elseif string.match(line,'</g>') then
+        table.remove(state.parent_attr_stack)
+        return 'love.graphics.pop()'
+
+    -- generic elements
+    elseif string.match(line, '<[:A-Z_a-z][:A-Z_a-z0-9%-%.]*%s') then
+        -- get the element name and the attributes
+        local element = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)%s')
+        local attributes = svglover._getattributes(line, parent_attr)
+
+        -- get the id!! that's important (sometimes)
+        if attributes["id"] ~= nil then
+            state.ids[attributes["id"]] = {
+                name = element;
+                attributes = attributes;
+            }
+        end
+
+        -- generate the code!
+        return svglover._genelement(state, element, attributes, extdata, options)
+
     else
         -- display issues so that those motivated to hack can do so ;)
         print("LINE '" .. line .. "' is unparseable!")
         os.exit()
     end
+
     return ''
 end
 
@@ -1513,6 +721,821 @@ function svglover._hexdump(str)
         hex = hex .. string.format( "%02x ", ord )
     end
     return string.gsub(hex,' $','')
+end
+
+-- holds all the functions for every supported element
+svglover._elementsfunctions = {}
+
+function svglover._genelement(state, element, attributes, extdata, options)
+    local fn = svglover._elementsfunctions[element]
+    if fn ~= nil then
+        return fn(state, attributes, extdata, options)
+    else
+        -- display issues so that those motivated to hack can do so ;)
+        print("<" .. element .. "> not implemented!")
+        -- os.exit()
+    end
+
+    return ""
+end
+
+svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <path d="M 10,30
+    --            A 20,20 0,0,1 50,30
+    --            A 20,20 0,0,1 90,30
+    --            Q 90,60 50,90
+    --            Q 10,60 10,30 z"/>
+    -- lua example:
+    --   do
+    --   local vertices = {60,40,70,40}
+    --   love.graphics.setColor(r,g,b,a)
+    --   love.graphics.setLineWidth(width)
+    --   love.graphics.line(vertices)
+    --   end
+
+    --  colors (red/green/blue)
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    -- stroke
+    local linewidth = attr["stroke-width"]
+    if linewidth == nil then
+        linewidth = 1
+    else
+        linewidth = tonumber(linewidth,10)
+    end
+
+    -- d (definition)
+    local pathdef = attr["d"]
+
+    -- output
+    local result = ""
+
+    local ipx = 0
+    local ipy = 0
+    local cpx = 0
+    local cpy = 0
+    local prev_ctrlx = 0
+    local prev_ctrly = 0
+    local vertices = {}
+
+    --  iterate through all dem commands
+    for op, strargs in string.gmatch(pathdef, "%s*([MmLlHhVvCcSsQqTtAaZz])%s*([^MmLlHhVvCcSsQqTtAaZz]*)%s*") do
+        local args = {}
+
+        -- parse command arguments
+        if strargs ~= nil and #strargs > 0 then
+            for arg in string.gmatch(strargs, "%-?[^%s,%-]+") do
+               table.insert(args, 1, tonumber(arg,10))
+            end
+        end
+
+        -- move to
+        if op == "M" then
+            if #vertices > 0 then
+                table.insert(extdata, vertices)
+                result = result .. svglover._gensubpath(
+                    options, extdata, #extdata,
+                    f_red, f_green, f_blue, f_alpha, f_opacity,
+                    s_red, s_green, s_blue, s_alpha, s_opacity,
+                    opacity, linewidth
+                )
+                vertices = {}
+            end
+
+            ipx = table.remove(args)
+            ipy = table.remove(args)
+            cpx = ipx
+            cpy = ipy
+
+            table.insert(vertices, cpx)
+            table.insert(vertices, cpy)
+
+            while #args >= 2 do
+                cpx = table.remove(args)
+                cpy = table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- move to (relative)
+        elseif op == "m" then
+            if #vertices > 0 then
+                table.insert(extdata, vertices)
+                result = result .. svglover._gensubpath(
+                    options, extdata, #extdata,
+                    f_red, f_green, f_blue, f_alpha, f_opacity,
+                    s_red, s_green, s_blue, s_alpha, s_opacity,
+                    opacity, linewidth
+                )
+                vertices = {}
+            end
+
+            ipx = cpx + table.remove(args)
+            ipy = cpy + table.remove(args)
+            cpx = ipx
+            cpy = ipy
+
+            table.insert(vertices, cpx)
+            table.insert(vertices, cpy)
+
+            while #args >= 2 do
+                cpx = cpx + table.remove(args)
+                cpy = cpy + table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to
+        elseif op == "L" then
+            while #args >= 2 do
+                cpx = table.remove(args)
+                cpy = table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to (relative)
+        elseif op == "l" then
+            while #args >= 2 do
+                cpx = cpx + table.remove(args)
+                cpy = cpy + table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to (horizontal)
+        elseif op == "H" then
+            while #args >= 1 do
+                cpx = table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to (horizontal, relative)
+        elseif op == "h" then
+            while #args >= 1 do
+                cpx = cpx + table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to (vertical)
+        elseif op == "V" then
+            while #args >= 1 do
+                cpy = table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- line to (vertical, relative)
+        elseif op == "v" then
+            while #args >= 1 do
+                cpy = cpy + table.remove(args)
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
+
+        -- cubic bezier curve
+        elseif op == "C" then
+            while #args >= 6 do
+                local x1 = table.remove(args)
+                local y1 = table.remove(args)
+                local x2 = table.remove(args)
+                local y2 = table.remove(args)
+                local x = table.remove(args)
+                local y = table.remove(args)
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+                curve:insertControlPoint(x2, y2)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x2
+                prev_ctrly = y2
+            end
+
+        -- cubic bezier curve (relative)
+        elseif op == "c" then
+            while #args >= 6 do
+                local x1 = cpx + table.remove(args)
+                local y1 = cpy + table.remove(args)
+                local x2 = cpx + table.remove(args)
+                local y2 = cpy + table.remove(args)
+                local x = cpx + table.remove(args)
+                local y = cpy + table.remove(args)
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+                curve:insertControlPoint(x2, y2)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x2
+                prev_ctrly = y2
+            end
+
+        -- smooth cubic Bézier curve
+        elseif op == "S" then
+            while #args >= 4 do
+                local x2 = table.remove(args)
+                local y2 = table.remove(args)
+                local x = table.remove(args)
+                local y = table.remove(args)
+
+                -- calculate the start control point
+                local x1 = cpx + cpx - prev_ctrlx
+                local y1 = cpy + cpy - prev_ctrly
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+                curve:insertControlPoint(x2, y2)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x2
+                prev_ctrly = y2
+            end
+
+        -- smooth cubic Bézier curve (relative)
+        elseif op == "s" then
+            while #args >= 4 do
+                local x2 = cpx + table.remove(args)
+                local y2 = cpy + table.remove(args)
+                local x = cpx + table.remove(args)
+                local y = cpy + table.remove(args)
+
+                -- calculate the start control point
+                local x1 = cpx + cpx - prev_ctrlx
+                local y1 = cpy + cpy - prev_ctrly
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+                curve:insertControlPoint(x2, y2)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x2
+                prev_ctrly = y2
+            end
+
+        -- quadratic Bézier curve
+        elseif op == "Q" then
+            while #args >= 4 do
+                local x1 = table.remove(args)
+                local y1 = table.remove(args)
+                local x = table.remove(args)
+                local y = table.remove(args)
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x1
+                prev_ctrly = y1
+            end
+
+        -- quadratic Bézier curve (relative)
+        elseif op == "q" then
+            while #args >= 4 do
+                local x1 = cpx + table.remove(args)
+                local y1 = cpy + table.remove(args)
+                local x = cpx + table.remove(args)
+                local y = cpy + table.remove(args)
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x1
+                prev_ctrly = y1
+            end
+
+        -- smooth quadratic Bézier curve
+        elseif op == "T" then
+            while #args >= 2 do
+                local x = table.remove(args)
+                local y = table.remove(args)
+
+                -- calculate the control point
+                local x1 = cpx + cpx - prev_ctrlx
+                local y1 = cpy + cpy - prev_ctrly
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x1
+                prev_ctrly = y1
+            end
+
+        -- smooth quadratic Bézier curve (relative)
+        elseif op == "t" then
+            while #args >= 2 do
+                local x = cpx + table.remove(args)
+                local y = cpy + table.remove(args)
+
+                -- calculate the control point
+                local x1 = cpx + cpx - prev_ctrlx
+                local y1 = cpy + cpy - prev_ctrly
+
+                -- generate vertices
+                local curve = love.math.newBezierCurve(cpx, cpy, x, y)
+                curve:insertControlPoint(x1, y1)
+
+                for _, v in ipairs(curve:render(bezier_depth)) do
+                    table.insert(vertices, v)
+                end
+
+                -- release object
+                curve:release()
+
+                -- move the current point
+                cpx = x
+                cpy = y
+
+                -- remember the end control point for the next command
+                prev_ctrlx = x1
+                prev_ctrly = y1
+            end
+
+        -- arc to
+        elseif op == "A" then
+            print("ArcTo not implemented")
+
+        -- arc to (relative)
+        elseif op == "a" then
+            print("Relative ArcTo not implemented")
+
+        -- close shape (relative and absolute are the same)
+        elseif op == "Z" or op == "z" then
+            if #vertices > 0 then
+                table.insert(extdata, vertices)
+                result = result .. svglover._gensubpath(
+                    options, extdata, #extdata,
+                    f_red, f_green, f_blue, f_alpha, f_opacity,
+                    s_red, s_green, s_blue, s_alpha, s_opacity,
+                    opacity, linewidth, true
+                )
+            end
+
+            cpx = ipx
+            cpy = ipy
+
+            table.insert(vertices, cpx)
+            table.insert(vertices, cpy)
+        end
+
+        -- if the command wasn't a curve command, set prev_ctrlx and prev_ctrly to cpx and cpy
+        if not string.match(op, "[CcSsQqTt]") then
+            prev_ctrlx = cpx
+            prev_ctrly = cpy
+        end
+    end
+
+    if #vertices > 0 then
+        table.insert(extdata, vertices)
+        result = result .. svglover._gensubpath(
+            options, extdata, #extdata,
+            f_red, f_green, f_blue, f_alpha, f_opacity,
+            s_red, s_green, s_blue, s_alpha, s_opacity,
+            opacity, linewidth
+        )
+    end
+
+    if attr["transform"] ~= nil then
+        result =
+            "love.graphics.push()\n" ..
+            svglover._parsetransform(attr["transform"], extdata) ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
+end
+
+svglover._elementsfunctions["rect"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
+    --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" />
+    -- lua example:
+    --   love.graphics.setColor( red, green, blue, alpha )
+    --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
+
+    --  x (x_offset)
+    local x_offset = attr["x"]
+
+    --  y (y_offset)
+    local y_offset = attr["y"]
+
+    --  width (width)
+    local width = attr["width"]
+
+    --  height (height)
+    local height = attr["height"]
+
+    --  fill (red/green/blue)
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    -- output
+    local result = ""
+
+    if f_red ~= nil then
+        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+        result = result .. "love.graphics.rectangle(\"fill\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+    end
+
+    if s_red ~= nil then
+        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+        result = result .. "love.graphics.rectangle(\"line\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
+    end
+
+    if attr["transform"] ~= nil then
+        result =
+            "love.graphics.push()\n" ..
+            svglover._parsetransform(attr["transform"], extdata) ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
+end
+
+svglover._elementsfunctions["ellipse"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
+    --   <circle cx="114.279" cy="10.335" r="10"/>
+    -- lua example:
+    --   love.graphics.setColor( red, green, blue, alpha )
+    --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
+
+    --  cx (center_x)
+    local center_x = attr["cx"]
+
+    --  cy (center_y)
+    local center_y = attr["cy"]
+
+    --  r (radius, for a circle)
+    local radius = attr["r"]
+
+    local radius_x
+    local radius_y
+    if radius ~= nil then
+        radius_x = radius
+        radius_y = radius
+    else
+        --  rx (radius_x, for an ellipse)
+        radius_x = attr["rx"]
+
+        --  ry (radius_y, for an ellipse)
+        radius_y = attr["ry"]
+    end
+
+    --  colors
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    -- output
+    local result = ""
+
+    if f_red ~= nil then
+        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
+        result = result .. "love.graphics.ellipse(\"fill\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
+    end
+
+    if s_red ~= nil then
+        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+        result = result .. "love.graphics.ellipse(\"line\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
+    end
+
+    if attr["transform"] ~= nil then
+        result =
+            "love.graphics.push()\n" ..
+            svglover._parsetransform(attr["transform"], extdata) ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
+end
+
+svglover._elementsfunctions["circle"] = svglover._elementsfunctions["ellipse"]
+
+svglover._elementsfunctions["polygon"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+    -- lua example:
+    --   love.graphics.setColor( red, green, blue, alpha )
+    --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+
+    --  colors
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    if f_red == nil and s_red == nil then
+        return ""
+    end
+
+    --  stroke-width
+    local linewidth = attr["stroke-width"]
+    if linewidth == nil then
+        linewidth = 1
+    else
+        linewidth = tonumber(linewidth,10)
+    end
+
+    --  points (vertices)
+    local vertices = attr["points"]
+
+    local vertices_coords = {}
+    for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
+        table.insert(vertices_coords, tonumber(n,10))
+    end
+    table.insert(extdata, vertices_coords)
+
+    -- output
+    local result = ""
+
+    result = result .. svglover._gensubpath(
+        options, extdata, #extdata,
+        f_red, f_green, f_blue, f_alpha, f_opacity,
+        s_red, s_green, s_blue, s_alpha, s_opacity,
+        opacity, linewidth, true
+    )
+
+    if attr["transform"] ~= nil then
+        result =
+            "love.graphics.push()\n" ..
+            svglover._parsetransform(attr["transform"], extdata) ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
+end
+
+svglover._elementsfunctions["polyline"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <polyline fill="#6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+    -- lua example:
+    --   love.graphics.setColor( red, green, blue, alpha )
+    --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
+
+    --  colors
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    if f_red == nil and s_red == nil then
+        return ""
+    end
+
+    --  stroke-width
+    local linewidth = attr["stroke-width"]
+    if linewidth == nil then
+        linewidth = 1
+    else
+        linewidth = tonumber(linewidth,10)
+    end
+
+    --  points (vertices)
+    local vertices = attr["points"]
+
+    local vertices_coords = {}
+    for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
+        table.insert(vertices_coords, tonumber(n,10))
+    end
+    table.insert(extdata, vertices_coords)
+
+    -- output
+    local result = ""
+
+    result = result .. svglover._gensubpath(
+        options, extdata, #extdata,
+        f_red, f_green, f_blue, f_alpha, f_opacity,
+        s_red, s_green, s_blue, s_alpha, s_opacity,
+        opacity, linewidth, false -- < that's the only difference between <polygon> and <polyline>
+    )
+
+    if attr["transform"] ~= nil then
+        result =
+            "love.graphics.push()\n" ..
+            svglover._parsetransform(attr["transform"], extdata) ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
 end
 
 return svglover
