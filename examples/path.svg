@@ -1,7 +1,7 @@
 <!-- This file contains code from the MDN -->
 <svg viewBox="0 0 30 50" width="300" height="500" xmlns="http://www.w3.org/2000/svg">
     <g transform="scale(0.1 0.1)">
-        <path fill="#222" stroke="white" stroke-width="0.1" d="M0,0h300v500h-300z" />
+        <rect fill="#17181c" x="0" y="0" width="300" height="500" />
 
         <g transform="translate(0 0)">
             <!-- MoveTo and horizontal LineTo -->
