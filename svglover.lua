@@ -431,22 +431,6 @@ function svglover._colorparse(str, default_r, default_g, default_b, default_a)
     end
 end
 
--- generates a lua table list literal from the given table
-function svglover._unpackstr(data)
-    local result = ""
-
-    for i = 1, #data do
-        result = result .. tostring(data[i])
-
-        -- add commas
-        if i < #data then
-            result = result .. ","
-        end
-    end
-
-    return result
-end
-
 -- generates LOVE code for a subpath
 function svglover._gensubpath(
     options, extdata, bufferid,
