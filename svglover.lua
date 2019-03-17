@@ -158,6 +158,18 @@ svglover._colornames = {
     yellow = {255,255,0,255};
     yellowgreen = {154,205,50 ,255};
 }
+svglover._inherited_attributes = {
+    ["x"] = true;
+    ["y"] = true;
+    ["color"] = true;
+    ["fill"] = true;
+    ["fill-opacity"] = true;
+    ["fill-rule"] = true;
+    ["opacity"] = true;
+    ["stroke"] = true;
+    ["stroke-opacity"] = true;
+    ["stroke-width"] = true;
+}
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
@@ -219,15 +231,27 @@ function svglover.load(svgfile, options)
         }
     end
 
-    --  - finally, loop over lines, appending to svg.drawcommands
+    --  - the state where all the information needed during parsing will be needed
     local state = {
-        parent_attr_stack = {};
+        -- elements by id
         ids = {};
+
+        -- current parent element (here, the root)
+        parent = {
+            -- will store everything!
+            children = {};
+            attributes = {}; -- default values
+        };
     }
 
+    -- first pass: build the element tree by going through all the lines
     for line in string.gmatch(file_contents, "[^\n]+") do
-        -- parse it
-        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(state, line, svg.extdata, options)
+        svglover._lineparse(state, line, svg.extdata, options)
+    end
+
+    -- second pass: render them all!!
+    for _, element in ipairs(state.parent.children) do
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._genelement(state, element, svg.extdata, options)
     end
 
     -- remove duplicate newlines
@@ -459,14 +483,8 @@ function svglover._colorparse(str, default_r, default_g, default_b, default_a)
 end
 
 -- parse the attributes out of an XML element into a lua table
-function svglover._getattributes(line, defaults)
+function svglover._getattributes(line)
     local attributes = {}
-
-    if defaults ~= nil then
-        for name, value in pairs(defaults) do
-            attributes[name] = value
-        end
-    end
 
     for name, value in string.gmatch(line, "%s([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)%s*=%s*[\"'](.-)[\"']") do
         attributes[name] = value
@@ -564,15 +582,8 @@ function svglover._parsetransform(transform, extdata)
     return result
 end
 
--- parse an input line from an SVG, returning the equivalent LOVE code
+-- parse an input line from an SVG, returning a table representing the element
 function svglover._lineparse(state, line, extdata, options)
-    local parent_attr = state.parent_attr_stack[#(state.parent_attr_stack)]
-    local bezier_depth = options["bezier_depth"]
-
-    if bezier_depth == nil then
-        bezier_depth = 5
-    end
-
     -- start or end svg etc.
     if  string.match(line, '</?svg') or
         string.match(line, '<.xml') or
@@ -581,8 +592,8 @@ function svglover._lineparse(state, line, extdata, options)
         string.match(line, '<!DOCTYPE') then
         -- ignore
 
-    -- start group
-    elseif string.match(line,'<g[>%s]') then
+    -- open tag
+    elseif string.match(line,'<[:A-Z_a-z][:A-Z_a-z0-9%-%.]*[^/]*>%s*') then
         --  SVG example:
         --    <g transform="translate(226 107) rotate(307) scale(3 11)">
         --    <g transform="scale(4.000000) translate(0.5 0.5)">
@@ -593,59 +604,52 @@ function svglover._lineparse(state, line, extdata, options)
         --    love.graphics.scale( sx, sy )
 
         -- get all attributes
-        local attr = svglover._getattributes(line, parent_attr)
+        local element = {
+            parent = state.parent;
 
-        -- get the transform
-        local transform = attr["transform"]
+            name = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)');
+            attributes = svglover._getattributes(line);
+            children = {};
+        }
 
-        -- remove it from the attributes so that child nodes don't inherit it
-        attr["transform"] = nil
+        -- add ourselves to our parent
+        table.insert(state.parent.children, element)
 
-        -- they inherit everything else
-        table.insert(state.parent_attr_stack, attr)
+        -- we're the new parent!
+        state.parent = element
 
-        -- output
-        local result = "love.graphics.push()\n"
+    -- close tag
+    elseif string.match(line,'</[:A-Z_a-z][:A-Z_a-z0-9%-%.]*%s*>') then
+        -- pop the parent
+        state.parent = state.parent.parent
 
-        if transform ~= nil then
-            result = result .. svglover._parsetransform(transform, extdata)
-        end
-
-        return result
-
-    -- end group
-    elseif string.match(line,'</g>') then
-        table.remove(state.parent_attr_stack)
-        return 'love.graphics.pop()'
-
-    -- generic elements
-    elseif string.match(line, '<[:A-Z_a-z][:A-Z_a-z0-9%-%.]*%s') then
+    -- generic orphan elements
+    elseif string.match(line, '<[:A-Z_a-z][:A-Z_a-z0-9%-%.]*.*/>%s*$') then
         -- get the element name and the attributes
-        local element = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)%s')
-        local attributes = svglover._getattributes(line, parent_attr)
+        local element = {
+            parent = state.parent;
 
-        -- get the id!! that's important (sometimes)
-        if attributes["id"] ~= nil then
-            state.ids[attributes["id"]] = {
-                name = element;
-                attributes = attributes;
-            }
+            name = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)%s');
+            attributes = svglover._getattributes(line);
+        }
+
+        -- add the element to the list
+        table.insert(state.parent.children, element)
+
+        -- if the element has an ID, remember it
+        if element.attributes["id"] ~= nil then
+            state.ids[element.attributes["id"]] = element
         end
-
-        -- generate the code!
-        return svglover._genelement(state, element, attributes, extdata, options)
 
     else
         -- display issues so that those motivated to hack can do so ;)
         print("LINE '" .. line .. "' is unparseable!")
         os.exit()
     end
-
-    return ''
 end
 
 -- generates LOVE code for a subpath
-function svglover._gensubpath(attr, vertices, closed, extdata, options)
+function svglover._gensubpath(element, vertices, closed, extdata, options)
     local vertexcount = #vertices
 
     if vertexcount < 4 then
@@ -658,40 +662,20 @@ function svglover._gensubpath(attr, vertices, closed, extdata, options)
     -- attributes!
 
     --  colors (red/green/blue)
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(svglover._getattributevalue(element, "fill", "black"))
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(svglover._getattributevalue(element, "stroke", "none"))
 
     --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
+    local opacity = tonumber(svglover._getattributevalue(element, "opacity", "1"),10)
 
     --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
+    local f_opacity = tonumber(svglover._getattributevalue(element, "fill-opacity", "1"),10)
 
     --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
+    local s_opacity = tonumber(svglover._getattributevalue(element, "stroke-opacity", "1"),10)
 
     -- stroke
-    local linewidth = attr["stroke-width"]
-    if linewidth == nil then
-        linewidth = 1
-    else
-        linewidth = tonumber(linewidth,10)
-    end
+    local linewidth = tonumber(svglover._getattributevalue(element, "stroke-width", "1"),10)
 
     -- check if we're even going to draw anything
     if f_red == nil and s_red == nil then
@@ -747,23 +731,39 @@ function svglover._gensubpath(attr, vertices, closed, extdata, options)
     return result
 end
 
+function svglover._getattributevalue(element, attrname, default)
+    if element == nil then
+        return default
+    end
+
+    local value = element.attributes[attrname]
+
+    if value == nil and svglover._inherited_attributes[attrname] == true then
+        value = svglover._getattributevalue(element.parent, attrname)
+    end
+    if value == nil then
+        value = default
+    end
+
+    return value
+end
+
 -- holds all the functions for every supported element
 svglover._elementsfunctions = {}
 
-function svglover._genelement(state, element, attributes, extdata, options)
-    local fn = svglover._elementsfunctions[element]
+function svglover._genelement(state, element, extdata, options)
+    local fn = svglover._elementsfunctions[element.name]
     if fn ~= nil then
-        return fn(state, attributes, extdata, options)
+        return fn(state, element, extdata, options)
     else
         -- display issues so that those motivated to hack can do so ;)
-        print("<" .. element .. "> not implemented!")
-        -- os.exit()
+        print("<" .. element.name .. "> not implemented!")
     end
 
     return ""
 end
 
-svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
+svglover._elementsfunctions["path"] = function(state, element, extdata, options)
     -- SVG example:
     --   <path d="M 10,30
     --            A 20,20 0,0,1 50,30
@@ -771,15 +771,12 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
     --            Q 90,60 50,90
     --            Q 10,60 10,30 z"/>
     -- lua example:
-    --   do
-    --   local vertices = {60,40,70,40}
     --   love.graphics.setColor(r,g,b,a)
     --   love.graphics.setLineWidth(width)
     --   love.graphics.line(vertices)
-    --   end
 
     -- d (definition)
-    local pathdef = attr["d"]
+    local pathdef = svglover._getattributevalue(element, "d")
 
     -- output
     local result = ""
@@ -805,7 +802,7 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- move to
         if op == "M" then
-            result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
+            result = result .. svglover._gensubpath(element, vertices, false, extdata, options)
             vertices = {}
 
             ipx = table.remove(args)
@@ -826,7 +823,7 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- move to (relative)
         elseif op == "m" then
-            result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
+            result = result .. svglover._gensubpath(element, vertices, false, extdata, options)
             vertices = {}
 
             ipx = cpx + table.remove(args)
@@ -1155,7 +1152,7 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- close shape (relative and absolute are the same)
         elseif op == "Z" or op == "z" then
-            result = result .. svglover._gensubpath(attr, vertices, true, extdata, options)
+            result = result .. svglover._gensubpath(element, vertices, true, extdata, options)
 
             cpx = ipx
             cpy = ipy
@@ -1172,12 +1169,12 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
     end
 
     -- one last time~!
-    result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
+    result = result .. svglover._gensubpath(element, vertices, false, extdata, options)
 
-    if attr["transform"] ~= nil then
+    if svglover._getattributevalue(element, "transform") ~= nil then
         result =
             "love.graphics.push()\n" ..
-            svglover._parsetransform(attr["transform"], extdata) ..
+            svglover._parsetransform(svglover._getattributevalue(element, "transform"), extdata) ..
             result ..
             "love.graphics.pop()\n"
     end
@@ -1185,7 +1182,7 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
     return result
 end
 
-svglover._elementsfunctions["rect"] = function(state, attr, extdata, options)
+svglover._elementsfunctions["rect"] = function(state, element, extdata, options)
     -- SVG example:
     --   <rect x="0" y="0" width="1024" height="680" fill="#79746f" />
     --   <rect fill="#1f1000" fill-opacity="0.501961" x="-0.5" y="-0.5" width="1" height="1" />
@@ -1194,44 +1191,29 @@ svglover._elementsfunctions["rect"] = function(state, attr, extdata, options)
     --   love.graphics.rectangle( "fill", x, y, width, height, rx, ry, segments )
 
     --  x (x_offset)
-    local x_offset = attr["x"]
+    local x_offset = svglover._getattributevalue(element, "x")
 
     --  y (y_offset)
-    local y_offset = attr["y"]
+    local y_offset = svglover._getattributevalue(element, "y")
 
     --  width (width)
-    local width = attr["width"]
+    local width = svglover._getattributevalue(element, "width")
 
     --  height (height)
-    local height = attr["height"]
+    local height = svglover._getattributevalue(element, "height")
 
     --  fill (red/green/blue)
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(svglover._getattributevalue(element, "fill", "black"))
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(svglover._getattributevalue(element, "stroke"))
 
     --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
+    local opacity = tonumber(svglover._getattributevalue(element, "opacity", "1"),10)
 
     --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
+    local f_opacity = tonumber(svglover._getattributevalue(element, "fill-opacity", "1"),10)
 
     --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
+    local s_opacity = tonumber(svglover._getattributevalue(element, "stroke-opacity", "1"),10)
 
     -- output
     local result = ""
@@ -1246,10 +1228,10 @@ svglover._elementsfunctions["rect"] = function(state, attr, extdata, options)
         result = result .. "love.graphics.rectangle(\"line\"," .. x_offset .. "," .. y_offset .. "," .. width .. "," .. height .. ")\n"
     end
 
-    if attr["transform"] ~= nil then
+    if svglover._getattributevalue(element, "transform") ~= nil then
         result =
             "love.graphics.push()\n" ..
-            svglover._parsetransform(attr["transform"], extdata) ..
+            svglover._parsetransform(svglover._getattributevalue(element, "transform"), extdata) ..
             result ..
             "love.graphics.pop()\n"
     end
@@ -1257,7 +1239,7 @@ svglover._elementsfunctions["rect"] = function(state, attr, extdata, options)
     return result
 end
 
-svglover._elementsfunctions["ellipse"] = function(state, attr, extdata, options)
+svglover._elementsfunctions["ellipse"] = function(state, element, extdata, options)
     -- SVG example:
     --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
     --   <circle cx="114.279" cy="10.335" r="10"/>
@@ -1266,13 +1248,13 @@ svglover._elementsfunctions["ellipse"] = function(state, attr, extdata, options)
     --   love.graphics.ellipse( mode, x, y, radiusx, radiusy, segments )
 
     --  cx (center_x)
-    local center_x = attr["cx"]
+    local center_x = svglover._getattributevalue(element, "cx")
 
     --  cy (center_y)
-    local center_y = attr["cy"]
+    local center_y = svglover._getattributevalue(element, "cy")
 
     --  r (radius, for a circle)
-    local radius = attr["r"]
+    local radius = svglover._getattributevalue(element, "r")
 
     local radius_x
     local radius_y
@@ -1281,39 +1263,24 @@ svglover._elementsfunctions["ellipse"] = function(state, attr, extdata, options)
         radius_y = radius
     else
         --  rx (radius_x, for an ellipse)
-        radius_x = attr["rx"]
+        radius_x = svglover._getattributevalue(element, "rx")
 
         --  ry (radius_y, for an ellipse)
-        radius_y = attr["ry"]
+        radius_y = svglover._getattributevalue(element, "ry")
     end
 
     --  colors
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(svglover._getattributevalue(element, "fill", "black"))
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(svglover._getattributevalue(element, "stroke"))
 
     --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
+    local opacity = tonumber(svglover._getattributevalue(element, "opacity", "1"),10)
 
     --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
+    local f_opacity = tonumber(svglover._getattributevalue(element, "fill-opacity", "1"),10)
 
     --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
+    local s_opacity = tonumber(svglover._getattributevalue(element, "stroke-opacity", "1"),10)
 
     -- output
     local result = ""
@@ -1328,10 +1295,10 @@ svglover._elementsfunctions["ellipse"] = function(state, attr, extdata, options)
         result = result .. "love.graphics.ellipse(\"line\"," .. center_x .. "," .. center_y .. "," .. radius_x .. "," .. radius_y .. ",50)\n"
     end
 
-    if attr["transform"] ~= nil then
+    if svglover._getattributevalue(element, "transform") ~= nil then
         result =
             "love.graphics.push()\n" ..
-            svglover._parsetransform(attr["transform"], extdata) ..
+            svglover._parsetransform(svglover._getattributevalue(element, "transform"), extdata) ..
             result ..
             "love.graphics.pop()\n"
     end
@@ -1342,23 +1309,23 @@ end
 svglover._elementsfunctions["circle"] = svglover._elementsfunctions["ellipse"]
 
 -- processes <polygon>s (closed == true) and <polyline>s (closed == false)
-local function _poly(closed, state, attr, extdata, options)
+local function _poly(closed, state, element, extdata, options)
     --  points (vertices)
     local vertices = {}
 
-    for n in string.gmatch(attr["points"], "%-?[^%s,%-]+") do
+    for n in string.gmatch(svglover._getattributevalue(element, "points"), "%-?[^%s,%-]+") do
         table.insert(vertices, tonumber(n,10))
     end
 
     -- output
     local result = ""
 
-    result = result .. svglover._gensubpath(attr, vertices, closed, extdata, options)
+    result = result .. svglover._gensubpath(element, vertices, closed, extdata, options)
 
-    if attr["transform"] ~= nil then
+    if svglover._getattributevalue(element, "transform") ~= nil then
         result =
             "love.graphics.push()\n" ..
-            svglover._parsetransform(attr["transform"], extdata) ..
+            svglover._parsetransform(svglover._getattributevalue(element, "transform"), extdata) ..
             result ..
             "love.graphics.pop()\n"
     end
@@ -1366,24 +1333,41 @@ local function _poly(closed, state, attr, extdata, options)
     return result
 end
 
-svglover._elementsfunctions["polygon"] = function(state, attr, extdata, options)
+svglover._elementsfunctions["polygon"] = function(state, element, extdata, options)
     -- SVG example:
     --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
     -- lua example:
     --   love.graphics.setColor( red, green, blue, alpha )
     --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
 
-    return _poly(true, state, attr, extdata, options)
+    return _poly(true, state, element, extdata, options)
 end
 
-svglover._elementsfunctions["polyline"] = function(state, attr, extdata, options)
+svglover._elementsfunctions["polyline"] = function(state, element, extdata, options)
     -- SVG example:
     --   <polyline fill="#6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
     -- lua example:
     --   love.graphics.setColor( red, green, blue, alpha )
     --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
 
-    return _poly(false, state, attr, extdata, options)
+    return _poly(false, state, element, extdata, options)
+end
+
+svglover._elementsfunctions["g"] = function(state, element, extdata, options)
+    -- output
+    local result = "love.graphics.push()\n"
+
+    if element.attributes["transform"] ~= nil then
+        result = result .. svglover._parsetransform(element.attributes["transform"], extdata)
+    end
+
+    if element.children ~= nil then
+        for _, child in ipairs(element.children) do
+            result = result .. svglover._genelement(state, child, extdata, options)
+        end
+    end
+
+    return result .. "love.graphics.pop()\n"
 end
 
 return svglover
