@@ -324,9 +324,9 @@ function svglover.display(svg,x,y,region_width,region_height,leave_no_edges,bord
     local centering_offset_x = 0
     local centering_offset_y = 0
     if scale_factor * svg.width > region_width then
-            centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width*zoom)*0.5)
+        centering_offset_x = -math.floor(((scale_factor*svg.width)-region_width*zoom)*0.5)
     elseif scale_factor * svg.height > region_height then
-            centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height*zoom)*0.5)
+        centering_offset_y = -math.floor(((scale_factor*svg.height)-region_height*zoom)*0.5)
     end
 
     -- remember the determined properties
