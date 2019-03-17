@@ -96,20 +96,20 @@ screen resolutions
 ## Usage
 First import the library with require
 
-```
+```lua
 svglover = require('svglover')
 ```
 
 You should normally load your SVGs straight away in the `love.load()` function
 to prevent duplicate reads. The syntax for doing this is as follows:
 
-```
+```lua
 vector_image = svglover.load('some.svg')
 ```
 
 You then specify where you want them displayed using:
 
-```
+```lua
 svglover.display(vector_image,topleft_x,topleft_y,width,height,completely_fill_region,border_color,border_width,zoom)
 ```
 
@@ -121,7 +121,7 @@ Finally, you should add the `svglover.draw()` call to the end of your
 
 A complete example:
 
-```
+```lua
 function love.load()
     vector_image = svglover.load('some.svg')
     svglover.display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
