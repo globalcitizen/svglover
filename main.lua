@@ -35,10 +35,6 @@ function love.load()
 	-- <path> demo
 	local pic7 = svglover.load('examples/path.svg')
 	svglover.display(pic7,50,50,700,1000,false)
-
-	-- The tiggie!
-	local pic8 = svglover.load('examples/ghostscript-tiger.svg')
-	svglover.display(pic8,800,50,800,800,false)
 end
 
 function love.draw()
