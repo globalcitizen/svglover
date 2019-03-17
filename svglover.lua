@@ -1192,7 +1192,7 @@ function svglover._lineparse(state, line, extdata, options)
         return result
 
     -- ellipse or circle
-    elseif string.match(line,'<ellipse%s') or string.match(line,'<circle ') then
+    elseif string.match(line,'<ellipse%s') or string.match(line,'<circle%s') then
         -- SVG example:
         --   <ellipse fill="#ffffff" fill-opacity="0.501961" cx="81" cy="16" rx="255" ry="22" />
         --   <circle cx="114.279" cy="10.335" r="10"/>
