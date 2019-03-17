@@ -33,7 +33,19 @@ function love.load()
 	svglover.display(pic6,1520,100,300,750,true,{0,0,0,255},3)
 
 	-- <path> demo
-	local pic7 = svglover.load('examples/path.svg')
+	local pic7 = svglover.load('examples/path.svg', {
+		--  - That's the default value for bezier_depth:
+		-- bezier_depth = 5;
+
+		--  - Faster, but less accurate, enabling this option
+		--      will use LOVE2D's filling function to fill polygons.
+		--      The default is false, and will use the 'evenodd' rule.
+		--      'evenodd' isn't the default according to the SVG
+		--      specification, it should be 'nonzero' but this feature
+		--      isn't implemented yet; this might cause incorrect results.
+		-- use_love_fill = true;
+	})
+
 	svglover.display(pic7,50,50,700,1000,false)
 end
 

@@ -161,7 +161,9 @@ svglover._colornames = {
 
 -- load an svg and return it as a slightly marked up table
 --  markup includes resolution detection
-function svglover.load(svgfile, bezier_depth)
+function svglover.load(svgfile, options)
+    options = options or {}
+
     -- validate input
     --  file exists?
     if not love.filesystem.getInfo(svgfile) then
@@ -224,7 +226,7 @@ function svglover.load(svgfile, bezier_depth)
 
     for line in string.gmatch(file_contents, "[^\n]+") do
         -- parse it
-        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(line, state, bezier_depth, svg.extdata)
+        svg.drawcommands = svg.drawcommands .. "\n" .. svglover._lineparse(state, line, svg.extdata, options)
     end
 
     -- remove duplicate newlines
@@ -446,11 +448,10 @@ end
 
 -- generates LOVE code for a subpath
 function svglover._gensubpath(
-    extdata, bufferid,
+    options, extdata, bufferid,
     f_red, f_green, f_blue, f_alpha, f_opacity,
     s_red, s_green, s_blue, s_alpha, s_opacity,
-    opacity, linewidth, closed
-)
+    opacity, linewidth, closed)
     local vertices = extdata[bufferid]
     local vertexcount = #vertices
 
@@ -465,28 +466,34 @@ function svglover._gensubpath(
 
     -- fill
     if f_red ~= nil and vertexcount >= 6 then
-        local minx, miny, maxx, maxy = vertices[1], vertices[2], vertices[1], vertices[2]
+        if options.use_love_fill == true then
+            result = result ..
+                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
+                "love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "])"
+        else
+            local minx, miny, maxx, maxy = vertices[1], vertices[2], vertices[1], vertices[2]
 
-        for i = 3, vertexcount, 2 do
-            minx = math.min(minx, vertices[i])
-            miny = math.min(miny, vertices[i+1])
-            maxx = math.max(maxx, vertices[i])
-            maxy = math.max(maxy, vertices[i+1])
+            for i = 3, vertexcount, 2 do
+                minx = math.min(minx, vertices[i])
+                miny = math.min(miny, vertices[i+1])
+                maxx = math.max(maxx, vertices[i])
+                maxy = math.max(maxy, vertices[i+1])
+            end
+
+            local stencil_fn =
+                "local extdata = ...\n" ..
+                "return function() love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "]) end\n"
+
+            -- insert the stencil rendering function
+            table.insert(extdata, assert(loadstring(stencil_fn))(extdata))
+
+            result = result ..
+                "love.graphics.stencil(extdata[" .. (#extdata) .. "], \"invert\")\n" ..
+                "love.graphics.setStencilTest(\"notequal\", 0)\n" ..
+                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
+                "love.graphics.rectangle(\"fill\"," .. minx .. "," .. miny .. "," .. (maxx-minx) .. "," .. (maxy-miny) .. ")" ..
+                "love.graphics.setStencilTest()\n"
         end
-
-        local stencil_fn =
-            "local extdata = ...\n" ..
-            "return function() love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "]) end\n"
-
-        -- insert the stencil rendering function
-        table.insert(extdata, assert(loadstring(stencil_fn))(extdata))
-
-        result = result ..
-            "love.graphics.stencil(extdata[" .. (#extdata) .. "], \"invert\")\n" ..
-            "love.graphics.setStencilTest(\"notequal\", 0)\n" ..
-            "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
-            "love.graphics.rectangle(\"fill\"," .. minx .. "," .. miny .. "," .. (maxx-minx) .. "," .. (maxy-miny) .. ")" ..
-            "love.graphics.setStencilTest()\n"
     end
 
     -- stroke
@@ -609,8 +616,13 @@ function svglover._parsetransform(transform, extdata)
 end
 
 -- parse an input line from an SVG, returning the equivalent LOVE code
-function svglover._lineparse(line, state, bezier_depth, extdata)
+function svglover._lineparse(state, line, extdata, options)
     local parent_attr = state.parent_attr_stack[#(state.parent_attr_stack)]
+    local bezier_depth = options["bezier_depth"]
+
+    if bezier_depth == nil then
+        bezier_depth = 5
+    end
 
     -- path
     if string.match(line, '<path%s') then
@@ -697,7 +709,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        extdata, #extdata,
+                        options, extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -726,7 +738,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        extdata, #extdata,
+                        options, extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -1063,7 +1075,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        extdata, #extdata,
+                        options, extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth, true
@@ -1087,7 +1099,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if #vertices > 0 then
             table.insert(extdata, vertices)
             result = result .. svglover._gensubpath(
-                extdata, #extdata,
+                options, extdata, #extdata,
                 f_red, f_green, f_blue, f_alpha, f_opacity,
                 s_red, s_green, s_blue, s_alpha, s_opacity,
                 opacity, linewidth
@@ -1306,7 +1318,15 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if f_red == nil and s_red == nil then
             return ""
         end
-        
+
+        --  stroke-width
+        local linewidth = attr["stroke-width"]
+        if linewidth == nil then
+            linewidth = 1
+        else
+            linewidth = tonumber(linewidth,10)
+        end
+
         --  points (vertices)
         local vertices = attr["points"]
 
@@ -1319,15 +1339,12 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         -- output
         local result = ""
 
-        if f_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", extdata[" .. (#extdata) .. "])\n"
-        end
-
-        if s_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"line\", extdata[" .. (#extdata) .. "])\n"
-        end
+        result = result .. svglover._gensubpath(
+            options, extdata, #extdata,
+            f_red, f_green, f_blue, f_alpha, f_opacity,
+            s_red, s_green, s_blue, s_alpha, s_opacity,
+            opacity, linewidth, true
+        )
 
         if attr["transform"] ~= nil then
             result =
@@ -1336,7 +1353,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 result ..
                 "love.graphics.pop()\n"
         end
-        
+
         return result
 
     -- polyline (eg. triangle, but not closed)
@@ -1381,7 +1398,15 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if f_red == nil and s_red == nil then
             return ""
         end
-        
+
+        --  stroke-width
+        local linewidth = attr["stroke-width"]
+        if linewidth == nil then
+            linewidth = 1
+        else
+            linewidth = tonumber(linewidth,10)
+        end
+
         --  points (vertices)
         local vertices = attr["points"]
 
@@ -1394,15 +1419,12 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         -- output
         local result = ""
 
-        if f_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.polygon(\"fill\", extdata[" .. (#extdata) .. "])\n"
-        end
-
-        if s_red ~= nil then
-            result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-            result = result .. "love.graphics.line(extdata[" .. (#extdata) .. "])\n"
-        end
+        result = result .. svglover._gensubpath(
+            options, extdata, #extdata,
+            f_red, f_green, f_blue, f_alpha, f_opacity,
+            s_red, s_green, s_blue, s_alpha, s_opacity,
+            opacity, linewidth, false -- < that's the only difference between <polygon> and <polyline>
+        )
 
         if attr["transform"] ~= nil then
             result =
@@ -1437,7 +1459,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         --    love.graphics.translate( dx, dy )
         --    love.graphics.rotate( angle )
         --    love.graphics.scale( sx, sy )
-        
+
         -- get all attributes
         local attr = svglover._getattributes(line, parent_attr)
 

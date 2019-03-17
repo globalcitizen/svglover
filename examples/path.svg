@@ -25,14 +25,14 @@
             <rect x="-30" y="-30" width="60" height="60" fill="red"
                   transform="skewX(30) translate(50 10)" />
         </g>
-        
+
         <g transform="translate(0 100)">
             <!-- LineTo commands with absolute coordinates -->
             <path fill="none" stroke="#f00"
-                d="M 10,10
-                   L 90,90
-                   V 10
-                   H 50" />
+                  d="M 10,10
+                     L 90,90
+                     V 10
+                     H 50" />
         </g>
 
         <g transform="translate(100 100)">
@@ -109,7 +109,7 @@
                    t 30,0 30,0 30,0 30,0 30,0" />
 
             <!-- Highlight the curve vertex and control points -->
-            <g>    
+            <g>
                 <polyline points="10,50 25,25 40,50" stroke="rgba(0,0,0,.2)" fill="none" />
                 <circle cx="25" cy="25" r="1.5" />
 
@@ -133,6 +133,24 @@
                 <!-- <use xlink:href="#SmoothQuadraticUp"   x="60" /> -->
                 <!-- <use xlink:href="#SmoothQuadraticDown" x="120" /> -->
             </g>
+        </g>
+
+        <g transform="translate(200 200)">
+            <!-- Default value for fill-rule -->
+            <polygon fill-rule="nonzero" stroke="red"
+                     points="50,0 21,90 98,35 2,35 79,90"/>
+        </g>
+
+        <g transform="translate(200 300)">
+            <!--
+            The points in the center of the shape has 2
+            path segments (materialized by the red stroke)
+            between them and Infinity therefor there are
+            considered outside the shape, that's why the
+            interior of the star is hollow (but not the branch).
+            -->
+            <polygon fill-rule="evenodd" stroke="red"
+                     points="50,0 21,90 98,35 02,35 79,90"/>
         </g>
 
         <g transform="translate(0 400)">
