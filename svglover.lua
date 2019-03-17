@@ -360,6 +360,33 @@ function svglover.draw()
     end
 end
 
+-- deep copy
+function svglover._dc(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[svglover._dc(orig_key)] = svglover._dc(orig_value)
+        end
+        setmetatable(copy, svglover._dc(getmetatable(orig)))
+    else
+        copy = orig
+    end
+    return copy
+end
+
+-- simple hex dump
+function svglover._hexdump(str)
+    local len = string.len( str )
+    local hex = ""
+    for i = 1, len do
+        local ord = string.byte( str, i )
+        hex = hex .. string.format( "%02x ", ord )
+    end
+    return string.gsub(hex,' $','')
+end
+
 -- parse a color definition, returning the RGBA components in the 0..1 range
 function svglover._colorparse(str, default_r, default_g, default_b, default_a)
     if str == nil then
@@ -431,71 +458,7 @@ function svglover._colorparse(str, default_r, default_g, default_b, default_a)
     end
 end
 
--- generates LOVE code for a subpath
-function svglover._gensubpath(
-    options, extdata, bufferid,
-    f_red, f_green, f_blue, f_alpha, f_opacity,
-    s_red, s_green, s_blue, s_alpha, s_opacity,
-    opacity, linewidth, closed)
-    local vertices = extdata[bufferid]
-    local vertexcount = #vertices
-
-    if
-        (f_red == nil and s_red == nil) or
-        (vertexcount < 4)
-    then
-        return ""
-    end
-
-    local result = ""
-
-    -- fill
-    if f_red ~= nil and vertexcount >= 6 then
-        if options.use_love_fill == true then
-            result = result ..
-                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
-                "love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "])"
-        else
-            local minx, miny, maxx, maxy = vertices[1], vertices[2], vertices[1], vertices[2]
-
-            for i = 3, vertexcount, 2 do
-                minx = math.min(minx, vertices[i])
-                miny = math.min(miny, vertices[i+1])
-                maxx = math.max(maxx, vertices[i])
-                maxy = math.max(maxy, vertices[i+1])
-            end
-
-            local stencil_fn =
-                "local extdata = ...\n" ..
-                "return function() love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "]) end\n"
-
-            -- insert the stencil rendering function
-            table.insert(extdata, assert(loadstring(stencil_fn))(extdata))
-
-            result = result ..
-                "love.graphics.stencil(extdata[" .. (#extdata) .. "], \"invert\")\n" ..
-                "love.graphics.setStencilTest(\"notequal\", 0)\n" ..
-                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
-                "love.graphics.rectangle(\"fill\"," .. minx .. "," .. miny .. "," .. (maxx-minx) .. "," .. (maxy-miny) .. ")" ..
-                "love.graphics.setStencilTest()\n"
-        end
-    end
-
-    -- stroke
-    if s_red ~= nil and vertexcount >= 4 then
-        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
-        result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
-
-        if closed == true then
-            result = result .. "love.graphics.polygon(\"line\", extdata[" .. bufferid .. "])\n"
-        else
-            result = result .. "love.graphics.line(extdata[" .. bufferid .. "])\n"
-        end
-    end
-
-    return result
-end
-
+-- parse the attributes out of an XML element into a lua table
 function svglover._getattributes(line, defaults)
     local attributes = {}
 
@@ -512,6 +475,7 @@ function svglover._getattributes(line, defaults)
     return attributes
 end
 
+-- parse transform functions into corresponding love.graphics calls
 function svglover._parsetransform(transform, extdata)
     local result = ""
 
@@ -680,31 +644,69 @@ function svglover._lineparse(state, line, extdata, options)
     return ''
 end
 
--- deep copy
-function svglover._dc(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[svglover._dc(orig_key)] = svglover._dc(orig_value)
-        end
-        setmetatable(copy, svglover._dc(getmetatable(orig)))
-    else
-        copy = orig
-    end
-    return copy
-end
+-- generates LOVE code for a subpath
+function svglover._gensubpath(
+    options, extdata, bufferid,
+    f_red, f_green, f_blue, f_alpha, f_opacity,
+    s_red, s_green, s_blue, s_alpha, s_opacity,
+    opacity, linewidth, closed)
+    local vertices = extdata[bufferid]
+    local vertexcount = #vertices
 
--- simple hex dump
-function svglover._hexdump(str)
-    local len = string.len( str )
-    local hex = ""
-    for i = 1, len do
-        local ord = string.byte( str, i )
-        hex = hex .. string.format( "%02x ", ord )
+    if
+        (f_red == nil and s_red == nil) or
+        (vertexcount < 4)
+    then
+        return ""
     end
-    return string.gsub(hex,' $','')
+
+    local result = ""
+
+    -- fill
+    if f_red ~= nil and vertexcount >= 6 then
+        if options.use_love_fill == true then
+            result = result ..
+                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
+                "love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "])"
+        else
+            local minx, miny, maxx, maxy = vertices[1], vertices[2], vertices[1], vertices[2]
+
+            for i = 3, vertexcount, 2 do
+                minx = math.min(minx, vertices[i])
+                miny = math.min(miny, vertices[i+1])
+                maxx = math.max(maxx, vertices[i])
+                maxy = math.max(maxy, vertices[i+1])
+            end
+
+            local stencil_fn =
+                "local extdata = ...\n" ..
+                "return function() love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "]) end\n"
+
+            -- insert the stencil rendering function
+            table.insert(extdata, assert(loadstring(stencil_fn))(extdata))
+
+            result = result ..
+                "love.graphics.stencil(extdata[" .. (#extdata) .. "], \"invert\")\n" ..
+                "love.graphics.setStencilTest(\"notequal\", 0)\n" ..
+                "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
+                "love.graphics.rectangle(\"fill\"," .. minx .. "," .. miny .. "," .. (maxx-minx) .. "," .. (maxy-miny) .. ")" ..
+                "love.graphics.setStencilTest()\n"
+        end
+    end
+
+    -- stroke
+    if s_red ~= nil and vertexcount >= 4 then
+        result = result .. "love.graphics.setColor(" .. s_red .. "," .. s_green .. "," .. s_blue .. "," .. (s_alpha * s_opacity * opacity) .. ")\n"
+        result = result .. "love.graphics.setLineWidth(" .. linewidth .. ")\n"
+
+        if closed == true then
+            result = result .. "love.graphics.polygon(\"line\", extdata[" .. bufferid .. "])\n"
+        else
+            result = result .. "love.graphics.line(extdata[" .. bufferid .. "])\n"
+        end
+    end
+
+    return result
 end
 
 -- holds all the functions for every supported element
