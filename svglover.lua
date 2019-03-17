@@ -446,10 +446,14 @@ end
 
 -- generates LOVE code for a subpath
 function svglover._gensubpath(
-    bufferid, vertexcount,
+    extdata, bufferid,
     f_red, f_green, f_blue, f_alpha, f_opacity,
     s_red, s_green, s_blue, s_alpha, s_opacity,
-    opacity, linewidth, closed)
+    opacity, linewidth, closed
+)
+    local vertices = extdata[bufferid]
+    local vertexcount = #vertices
+
     if
         (f_red == nil and s_red == nil) or
         (vertexcount < 4)
@@ -461,8 +465,28 @@ function svglover._gensubpath(
 
     -- fill
     if f_red ~= nil and vertexcount >= 6 then
-        result = result .. "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n"
-        result = result .. "love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "])\n"
+        local minx, miny, maxx, maxy = vertices[1], vertices[2], vertices[1], vertices[2]
+
+        for i = 3, vertexcount, 2 do
+            minx = math.min(minx, vertices[i])
+            miny = math.min(miny, vertices[i+1])
+            maxx = math.max(maxx, vertices[i])
+            maxy = math.max(maxy, vertices[i+1])
+        end
+
+        local stencil_fn =
+            "local extdata = ...\n" ..
+            "return function() love.graphics.polygon(\"fill\", extdata[" .. bufferid .. "]) end\n"
+
+        -- insert the stencil rendering function
+        table.insert(extdata, assert(loadstring(stencil_fn))(extdata))
+
+        result = result ..
+            "love.graphics.stencil(extdata[" .. (#extdata) .. "], \"invert\")\n" ..
+            "love.graphics.setStencilTest(\"notequal\", 0)\n" ..
+            "love.graphics.setColor(" .. f_red .. "," .. f_green .. "," .. f_blue .. "," .. (f_alpha * f_opacity * opacity) .. ")\n" ..
+            "love.graphics.rectangle(\"fill\"," .. minx .. "," .. miny .. "," .. (maxx-minx) .. "," .. (maxy-miny) .. ")" ..
+            "love.graphics.setStencilTest()\n"
     end
 
     -- stroke
@@ -673,7 +697,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #extdata, #vertices,
+                        extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -702,7 +726,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #extdata, #vertices,
+                        extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth
@@ -1039,7 +1063,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
                 if #vertices > 0 then
                     table.insert(extdata, vertices)
                     result = result .. svglover._gensubpath(
-                        #extdata, #vertices,
+                        extdata, #extdata,
                         f_red, f_green, f_blue, f_alpha, f_opacity,
                         s_red, s_green, s_blue, s_alpha, s_opacity,
                         opacity, linewidth, true
@@ -1063,7 +1087,7 @@ function svglover._lineparse(line, state, bezier_depth, extdata)
         if #vertices > 0 then
             table.insert(extdata, vertices)
             result = result .. svglover._gensubpath(
-                #extdata, #vertices,
+                extdata, #extdata,
                 f_red, f_green, f_blue, f_alpha, f_opacity,
                 s_red, s_green, s_blue, s_alpha, s_opacity,
                 opacity, linewidth
