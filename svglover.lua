@@ -645,18 +645,56 @@ function svglover._lineparse(state, line, extdata, options)
 end
 
 -- generates LOVE code for a subpath
-function svglover._gensubpath(
-    options, extdata, bufferid,
-    f_red, f_green, f_blue, f_alpha, f_opacity,
-    s_red, s_green, s_blue, s_alpha, s_opacity,
-    opacity, linewidth, closed)
-    local vertices = extdata[bufferid]
+function svglover._gensubpath(attr, vertices, closed, extdata, options)
     local vertexcount = #vertices
 
-    if
-        (f_red == nil and s_red == nil) or
-        (vertexcount < 4)
-    then
+    if vertexcount < 4 then
+        return ""
+    end
+
+    table.insert(extdata, vertices)
+    local bufferid = #extdata
+
+    -- attributes!
+
+    --  colors (red/green/blue)
+    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
+    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
+
+    --  opacity
+    local opacity = attr["opacity"]
+    if opacity == nil then
+        opacity = 1
+    else
+        opacity = tonumber(opacity,10)
+    end
+
+    --  fill-opacity
+    local f_opacity = attr["fill-opacity"]
+    if f_opacity == nil then
+        f_opacity = 1
+    else
+        f_opacity = tonumber(f_opacity,10)
+    end
+
+    --  stroke-opacity
+    local s_opacity = attr["stroke-opacity"]
+    if s_opacity == nil then
+        s_opacity = 1
+    else
+        s_opacity = tonumber(s_opacity,10)
+    end
+
+    -- stroke
+    local linewidth = attr["stroke-width"]
+    if linewidth == nil then
+        linewidth = 1
+    else
+        linewidth = tonumber(linewidth,10)
+    end
+
+    -- check if we're even going to draw anything
+    if f_red == nil and s_red == nil then
         return ""
     end
 
@@ -740,42 +778,6 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
     --   love.graphics.line(vertices)
     --   end
 
-    --  colors (red/green/blue)
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-    --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
-
-    --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
-
-    --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
-
-    -- stroke
-    local linewidth = attr["stroke-width"]
-    if linewidth == nil then
-        linewidth = 1
-    else
-        linewidth = tonumber(linewidth,10)
-    end
-
     -- d (definition)
     local pathdef = attr["d"]
 
@@ -803,16 +805,8 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- move to
         if op == "M" then
-            if #vertices > 0 then
-                table.insert(extdata, vertices)
-                result = result .. svglover._gensubpath(
-                    options, extdata, #extdata,
-                    f_red, f_green, f_blue, f_alpha, f_opacity,
-                    s_red, s_green, s_blue, s_alpha, s_opacity,
-                    opacity, linewidth
-                )
-                vertices = {}
-            end
+            result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
+            vertices = {}
 
             ipx = table.remove(args)
             ipy = table.remove(args)
@@ -832,16 +826,8 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- move to (relative)
         elseif op == "m" then
-            if #vertices > 0 then
-                table.insert(extdata, vertices)
-                result = result .. svglover._gensubpath(
-                    options, extdata, #extdata,
-                    f_red, f_green, f_blue, f_alpha, f_opacity,
-                    s_red, s_green, s_blue, s_alpha, s_opacity,
-                    opacity, linewidth
-                )
-                vertices = {}
-            end
+            result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
+            vertices = {}
 
             ipx = cpx + table.remove(args)
             ipy = cpy + table.remove(args)
@@ -1169,15 +1155,7 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
 
         -- close shape (relative and absolute are the same)
         elseif op == "Z" or op == "z" then
-            if #vertices > 0 then
-                table.insert(extdata, vertices)
-                result = result .. svglover._gensubpath(
-                    options, extdata, #extdata,
-                    f_red, f_green, f_blue, f_alpha, f_opacity,
-                    s_red, s_green, s_blue, s_alpha, s_opacity,
-                    opacity, linewidth, true
-                )
-            end
+            result = result .. svglover._gensubpath(attr, vertices, true, extdata, options)
 
             cpx = ipx
             cpy = ipy
@@ -1193,15 +1171,8 @@ svglover._elementsfunctions["path"] = function(state, attr, extdata, options)
         end
     end
 
-    if #vertices > 0 then
-        table.insert(extdata, vertices)
-        result = result .. svglover._gensubpath(
-            options, extdata, #extdata,
-            f_red, f_green, f_blue, f_alpha, f_opacity,
-            s_red, s_green, s_blue, s_alpha, s_opacity,
-            opacity, linewidth
-        )
-    end
+    -- one last time~!
+    result = result .. svglover._gensubpath(attr, vertices, false, extdata, options)
 
     if attr["transform"] ~= nil then
         result =
@@ -1370,71 +1341,19 @@ end
 
 svglover._elementsfunctions["circle"] = svglover._elementsfunctions["ellipse"]
 
-svglover._elementsfunctions["polygon"] = function(state, attr, extdata, options)
-    -- SVG example:
-    --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
-    -- lua example:
-    --   love.graphics.setColor( red, green, blue, alpha )
-    --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
-
-    --  colors
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-    --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
-
-    --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
-
-    --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
-
-    if f_red == nil and s_red == nil then
-        return ""
-    end
-
-    --  stroke-width
-    local linewidth = attr["stroke-width"]
-    if linewidth == nil then
-        linewidth = 1
-    else
-        linewidth = tonumber(linewidth,10)
-    end
-
+-- processes <polygon>s (closed == true) and <polyline>s (closed == false)
+local function _poly(closed, state, attr, extdata, options)
     --  points (vertices)
-    local vertices = attr["points"]
+    local vertices = {}
 
-    local vertices_coords = {}
-    for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
-        table.insert(vertices_coords, tonumber(n,10))
+    for n in string.gmatch(attr["points"], "%-?[^%s,%-]+") do
+        table.insert(vertices, tonumber(n,10))
     end
-    table.insert(extdata, vertices_coords)
 
     -- output
     local result = ""
 
-    result = result .. svglover._gensubpath(
-        options, extdata, #extdata,
-        f_red, f_green, f_blue, f_alpha, f_opacity,
-        s_red, s_green, s_blue, s_alpha, s_opacity,
-        opacity, linewidth, true
-    )
+    result = result .. svglover._gensubpath(attr, vertices, closed, extdata, options)
 
     if attr["transform"] ~= nil then
         result =
@@ -1447,6 +1366,16 @@ svglover._elementsfunctions["polygon"] = function(state, attr, extdata, options)
     return result
 end
 
+svglover._elementsfunctions["polygon"] = function(state, attr, extdata, options)
+    -- SVG example:
+    --   <polygon fill="6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
+    -- lua example:
+    --   love.graphics.setColor( red, green, blue, alpha )
+    --   love.graphics.polygon( mode, vertices )   -- where vertices is a list of x,y,x,y...
+
+    return _poly(true, state, attr, extdata, options)
+end
+
 svglover._elementsfunctions["polyline"] = function(state, attr, extdata, options)
     -- SVG example:
     --   <polyline fill="#6f614e" fill-opacity="0.501961" points="191,131 119,10 35,29" />
@@ -1454,74 +1383,7 @@ svglover._elementsfunctions["polyline"] = function(state, attr, extdata, options
     --   love.graphics.setColor( red, green, blue, alpha )
     --   love.graphics.line( vertices )   -- where vertices is a list of x,y,x,y...
 
-    --  colors
-    local f_red, f_green, f_blue, f_alpha = svglover._colorparse(attr["fill"], 0, 0, 0, 1)
-    local s_red, s_green, s_blue, s_alpha = svglover._colorparse(attr["stroke"])
-
-    --  opacity
-    local opacity = attr["opacity"]
-    if opacity == nil then
-        opacity = 1
-    else
-        opacity = tonumber(opacity,10)
-    end
-
-    --  fill-opacity
-    local f_opacity = attr["fill-opacity"]
-    if f_opacity == nil then
-        f_opacity = 1
-    else
-        f_opacity = tonumber(f_opacity,10)
-    end
-
-    --  stroke-opacity
-    local s_opacity = attr["stroke-opacity"]
-    if s_opacity == nil then
-        s_opacity = 1
-    else
-        s_opacity = tonumber(s_opacity,10)
-    end
-
-    if f_red == nil and s_red == nil then
-        return ""
-    end
-
-    --  stroke-width
-    local linewidth = attr["stroke-width"]
-    if linewidth == nil then
-        linewidth = 1
-    else
-        linewidth = tonumber(linewidth,10)
-    end
-
-    --  points (vertices)
-    local vertices = attr["points"]
-
-    local vertices_coords = {}
-    for n in string.gmatch(vertices, "%-?[^%s,%-]+") do
-        table.insert(vertices_coords, tonumber(n,10))
-    end
-    table.insert(extdata, vertices_coords)
-
-    -- output
-    local result = ""
-
-    result = result .. svglover._gensubpath(
-        options, extdata, #extdata,
-        f_red, f_green, f_blue, f_alpha, f_opacity,
-        s_red, s_green, s_blue, s_alpha, s_opacity,
-        opacity, linewidth, false -- < that's the only difference between <polygon> and <polyline>
-    )
-
-    if attr["transform"] ~= nil then
-        result =
-            "love.graphics.push()\n" ..
-            svglover._parsetransform(attr["transform"], extdata) ..
-            result ..
-            "love.graphics.pop()\n"
-    end
-
-    return result
+    return _poly(false, state, attr, extdata, options)
 end
 
 return svglover
