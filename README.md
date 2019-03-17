@@ -123,13 +123,13 @@ A complete example:
 
 ```
 function love.load()
-        vector_image = svglover.load('some.svg')
-        svglover.display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
+    vector_image = svglover.load('some.svg')
+    svglover.display(vector_image,100,100,100,100,true,{255,0,0,255},1,1)
 end
 
 function love.draw()
-        -- draw any scheduled SVGs
-        svglover.draw()
+    -- draw any scheduled SVGs
+    svglover.draw()
 end
 ```
 
