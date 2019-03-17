@@ -609,8 +609,13 @@ function svglover._lineparse(state, line, extdata, options)
 
             name = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)');
             attributes = svglover._getattributes(line);
+
             children = {};
         }
+
+        if element.attributes["id"] ~= nil then
+            state.ids[element.attributes["id"]] = element
+        end
 
         -- add ourselves to our parent
         table.insert(state.parent.children, element)
@@ -623,7 +628,7 @@ function svglover._lineparse(state, line, extdata, options)
         -- pop the parent
         state.parent = state.parent.parent
 
-    -- generic orphan elements
+    -- orphan elements
     elseif string.match(line, '<[:A-Z_a-z][:A-Z_a-z0-9%-%.]*.*/>%s*$') then
         -- get the element name and the attributes
         local element = {
@@ -632,6 +637,10 @@ function svglover._lineparse(state, line, extdata, options)
             name = string.match(line, '<([:A-Z_a-z][:A-Z_a-z0-9%-%.]*)%s');
             attributes = svglover._getattributes(line);
         }
+
+        if element.attributes["id"] ~= nil then
+            state.ids[element.attributes["id"]] = element
+        end
 
         -- add the element to the list
         table.insert(state.parent.children, element)
@@ -731,6 +740,7 @@ function svglover._gensubpath(element, vertices, closed, extdata, options)
     return result
 end
 
+-- get the attribute value from an element (with inheritence)
 function svglover._getattributevalue(element, attrname, default)
     if element == nil then
         return default
@@ -746,6 +756,26 @@ function svglover._getattributevalue(element, attrname, default)
     end
 
     return value
+end
+
+function svglover._copyelement(element)
+    local copy = {
+        name = element.name;
+        attributes = svglover._dc(element.attributes);
+    };
+
+    if element.children ~= nil then
+        copy.children = {}
+
+        for _, child in ipairs(element.children) do
+            local childcopy = svglover._copyelement(child)
+            childcopy.parent = element
+
+            table.insert(copy.children, childcopy)
+        end
+    end
+
+    return copy
 end
 
 -- holds all the functions for every supported element
@@ -1368,6 +1398,61 @@ svglover._elementsfunctions["g"] = function(state, element, extdata, options)
     end
 
     return result .. "love.graphics.pop()\n"
+end
+
+svglover._elementsfunctions["use"] = function(state, element, extdata, options)
+    -- get the reference
+    local href = svglover._getattributevalue(element, "href")
+
+    if href == nil then
+        href = svglover._getattributevalue(element, "xlink:href")
+    end
+
+    local result = ""
+
+    -- if the reference isn't nil (why would it be??)
+    if href ~= nil then
+        -- extract the #id
+        if string.match(href, "#.+") then
+            -- get the target element
+            local targetid = string.match(href, "#(.+)")
+            local target = state.ids[targetid]
+
+            -- if we found it
+            if target ~= nil then
+                -- create a copy
+                local copy = svglover._copyelement(target)
+
+                -- set parent
+                copy.parent = element.parent
+
+                -- override attributes
+                for k, v in pairs(element.attributes) do
+                    copy.attributes[k] = v
+                end
+
+                result = result .. svglover._genelement(state, copy, extdata, options)
+            end
+        else
+            -- what's wrong? let's take a look!
+            print("Can't parse href: " .. href)
+        end
+    end
+
+    -- if result isn't empty
+    if result ~= "" then
+        -- move stuff
+        local x = tonumber(svglover._getattributevalue(element, "x", "0"),10)
+        local y = tonumber(svglover._getattributevalue(element, "y", "0"),10)
+
+        result =
+            "love.graphics.push()\n" ..
+            "love.graphics.translate(" .. x .. "," .. y .. ")\n" ..
+            result ..
+            "love.graphics.pop()\n"
+    end
+
+    return result
 end
 
 return svglover
