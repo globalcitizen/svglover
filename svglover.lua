@@ -8,6 +8,12 @@ svglover
 
 local svglover = {}
 
+svglover._default_options = {
+    ["bezier_depth"] = 5;
+    ["arc_segments"] = 50;
+    ["use_love_fill"] = false;
+}
+
 svglover.onscreen_svgs = {}
 svglover._colornames = {
     aliceblue = {240,248,255,255};
@@ -158,6 +164,7 @@ svglover._colornames = {
     yellow = {255,255,0,255};
     yellowgreen = {154,205,50 ,255};
 }
+
 svglover._inherited_attributes = {
     ["x"] = true;
     ["y"] = true;
@@ -175,6 +182,12 @@ svglover._inherited_attributes = {
 --  markup includes resolution detection
 function svglover.load(svgfile, options)
     options = options or {}
+
+    for k, v in pairs(svglover._default_options) do
+        if options[k] == nil then
+            options[k] = v
+        end
+    end
 
     -- validate input
     --  file exists?
@@ -657,7 +670,7 @@ function svglover._lineparse(state, line, extdata, options)
     end
 end
 
--- generates LOVE code for a subpath
+-- generate LOVE code for a subpath
 function svglover._gensubpath(element, vertices, closed, extdata, options)
     local vertexcount = #vertices
 
@@ -758,6 +771,7 @@ function svglover._getattributevalue(element, attrname, default)
     return value
 end
 
+-- copy element
 function svglover._copyelement(element)
     local copy = {
         name = element.name;
@@ -778,9 +792,151 @@ function svglover._copyelement(element)
     return copy
 end
 
+-- returns the angle between vectors u and v
+function svglover._vecangle(ux, uy, vx, vy)
+    local cross = ux * vy - uy * vx
+    local dot = ux * vx + uy * vy
+
+    -- clamp it to avoid floating-point arithmetics errors
+    dot = math.min(1, math.max(-1, dot))
+
+    local result = math.deg(math.acos(dot))
+
+    if cross >= 0 then
+        return result
+    else
+        return -result
+    end
+end
+
+-- goes from endpoint to center parameterization
+-- https://www.w3.org/TR/SVG11/implnote.html#ArcConversionEndpointToCenter
+-- phi is in degrees
+function svglover._endpoint2center(x1, y1, x2, y2, fa, fs, rx, ry, phi)
+    -- Pre-compute some stuff
+    local rad_phi = math.rad(phi)
+    local cos_phi = math.cos(rad_phi)
+    local sin_phi = math.sin(rad_phi)
+
+    -- Step 1: Compute (x1_, y1_)
+    local x1_ = cos_phi * (x1-x2)/2 + sin_phi * (y1-y2)/2
+    local y1_ = -sin_phi * (x1-x2)/2 + cos_phi * (y1-y2)/2
+
+    -- Step 2: Compute (cx_, cy_)
+    local f = math.sqrt(
+        math.max(rx*rx * ry*ry - rx*rx * y1_*y1_ - ry*ry * x1_*x1_, 0) -- rounding errors safety
+        /
+        (rx*rx * y1_*y1_ + ry*ry * x1_*x1_)
+    )
+
+    if fa == fs then
+        f = -f
+    end
+
+    local cx_ =  f * rx * y1_ / ry
+    local cy_ = -f * ry * x1_ / rx
+
+    -- Step 3: Compute (cx, cy) from (cx_, cy_)
+    local cx = cos_phi * cx_ - sin_phi * cy_ + (x1+x2)/2
+    local cy = sin_phi * cx_ + cos_phi * cy_ + (y1+y2)/2
+
+    -- Step 4: Compute theta1 and dtheta
+    local vx = (x1_-cx_)/rx
+    local vy = (y1_-cy_)/ry
+
+    local theta1 = svglover._vecangle(1, 0, vx, vy)
+    local dtheta = svglover._vecangle(vx, vy, (-x1_-cx_)/rx, (-y1_-cy_)/ry) % 360
+
+    if not fs and dtheta > 0 then
+        dtheta = dtheta - 360
+    elseif fs and dtheta < 0 then
+        dtheta = dtheta + 360
+    end
+
+    return cx, cy, theta1, dtheta
+end
+
+-- generate vertices for an arc with the given definition
+-- https://www.w3.org/TR/SVG11/implnote.html#ArcImplementationNotes
+-- (sx, sy) => start point
+-- (rx, ry) => radii
+-- phi => angle (deg)
+-- fa => large arc flag
+-- fs => sweep flag
+-- (ex, ey) => end point
+-- segments => how many segments (the higher the smoother)
+-- vertices => dest table (where to put resulting vertices, can be nil)
+function svglover._buildarc(sx, sy, rx, ry, phi, fa, fs, ex, ey, segments, vertices)
+    -- Argument checking
+    if segments == nil then
+        segments = 10
+    end
+
+    segments = math.max(segments, 1)
+
+    if vertices == nil then
+        vertices = {}
+    end
+
+    -- Out-of-range checks
+
+    -- - That's stupid
+    if sx == ex and sy == ey then
+        return vertices
+    end
+
+    -- - That's just a line!
+    if rx == 0 or ry == 0 then
+        table.insert(vertices, ex)
+        table.insert(vertices, ey)
+    end
+
+    -- - Negatives are a lie!
+    rx = math.abs(rx)
+    ry = math.abs(ry)
+
+    -- - When your radii are too small
+    local rad_phi = math.rad(phi)
+    local cos_phi = math.cos(rad_phi)
+    local sin_phi = math.sin(rad_phi)
+
+    local x1_ = cos_phi * (sx-ex)/2 + sin_phi * (sy-ey)/2
+    local y1_ = -sin_phi * (sx-ex)/2 + cos_phi * (sy-ey)/2
+
+    local lambda = x1_*x1_/(rx*rx) + y1_*y1_/(ry*ry)
+
+    if lambda > 1 then
+        local sqrt_lambda = math.sqrt(lambda)
+
+        rx = sqrt_lambda * rx
+        ry = sqrt_lambda * ry
+    end
+
+    -- - When you go too far:
+    phi = phi % 360
+
+    -- - Bang bang, you're a boolean
+    fa = fa ~= 0
+    fs = fs ~= 0
+
+    local cx, cy, theta1, dtheta = svglover._endpoint2center(sx, sy, ex, ey, fa, fs, rx, ry, phi)
+
+    for i = 1, segments do
+        local theta = math.rad(theta1 + dtheta * (i / segments))
+        local cos_theta = math.cos(theta)
+        local sin_theta = math.sin(theta)
+
+        table.insert(vertices, cos_phi * rx * cos_theta - sin_phi * ry * sin_theta + cx)
+        table.insert(vertices, sin_phi * rx * cos_theta + cos_phi * ry * sin_theta + cy)
+    end
+
+    return vertices
+end
+
 -- holds all the functions for every supported element
 svglover._elementsfunctions = {}
 
+-- generate LOVE code for the given element
 function svglover._genelement(state, element, extdata, options)
     local fn = svglover._elementsfunctions[element.name]
     if fn ~= nil then
@@ -943,7 +1099,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 curve:insertControlPoint(x1, y1)
                 curve:insertControlPoint(x2, y2)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -974,7 +1130,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 curve:insertControlPoint(x1, y1)
                 curve:insertControlPoint(x2, y2)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1007,7 +1163,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 curve:insertControlPoint(x1, y1)
                 curve:insertControlPoint(x2, y2)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1040,7 +1196,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 curve:insertControlPoint(x1, y1)
                 curve:insertControlPoint(x2, y2)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1068,7 +1224,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 local curve = love.math.newBezierCurve(cpx, cpy, x, y)
                 curve:insertControlPoint(x1, y1)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1096,7 +1252,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 local curve = love.math.newBezierCurve(cpx, cpy, x, y)
                 curve:insertControlPoint(x1, y1)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1126,7 +1282,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 local curve = love.math.newBezierCurve(cpx, cpy, x, y)
                 curve:insertControlPoint(x1, y1)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1156,7 +1312,7 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
                 local curve = love.math.newBezierCurve(cpx, cpy, x, y)
                 curve:insertControlPoint(x1, y1)
 
-                for _, v in ipairs(curve:render(bezier_depth)) do
+                for _, v in ipairs(curve:render(options["bezier_depth"])) do
                     table.insert(vertices, v)
                 end
 
@@ -1174,11 +1330,40 @@ svglover._elementsfunctions["path"] = function(state, element, extdata, options)
 
         -- arc to
         elseif op == "A" then
-            print("ArcTo not implemented")
+            while #args >= 7 do
+                local rx = table.remove(args)
+                local ry = table.remove(args)
+                local angle = table.remove(args)
+                local large_arc_flag = table.remove(args)
+                local sweep_flag = table.remove(args)
+                local x = table.remove(args)
+                local y = table.remove(args)
+
+                svglover._buildarc(cpx, cpy, rx, ry, angle, large_arc_flag, sweep_flag, x, y, options["arc_segments"], vertices)
+
+                cpx = x
+                cpy =
+
+                table.insert(vertices, cpx)
+                table.insert(vertices, cpy)
+            end
 
         -- arc to (relative)
         elseif op == "a" then
-            print("Relative ArcTo not implemented")
+            while #args >= 7 do
+                local rx = table.remove(args)
+                local ry = table.remove(args)
+                local angle = table.remove(args)
+                local large_arc_flag = table.remove(args)
+                local sweep_flag = table.remove(args)
+                local x = cpx + table.remove(args)
+                local y = cpy + table.remove(args)
+
+                svglover._buildarc(cpx, cpy, rx, ry, angle, large_arc_flag, sweep_flag, x, y, options["arc_segments"], vertices)
+
+                cpx = x
+                cpy = y
+            end
 
         -- close shape (relative and absolute are the same)
         elseif op == "Z" or op == "z" then
