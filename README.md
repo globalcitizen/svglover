@@ -13,6 +13,18 @@ The latest code can always be found at
 
 ## News
 
+* 2019-03-19:
+    [v1.1.0](https://github.com/globalcitizen/svglover/releases/tag/v1.1.0) released! Major work from @nasso, thanks!
+  - Add support for the following elements: `<path>`, `<use>` and `<polyline>`.
+  - Add support for the following attributes: `href`, `xlink:href`, `d`, `viewBox`, `(stroke|fill)-opacity`.
+  - Add support for many more color formats.
+  - Improved support for the `transform` attribute.
+  - Improved support for opacity-related attributes.
+  - Various XML parsing improvements.
+  - Removed `tableshow.lua` - I don't know why it was there but I'm pretty sure it isn't needed for `svglover` to work since it wasn't used at all.
+  - Changed the demo code to show all the new features.
+  - Some bug fixes.
+
 * 2017-05-30:
     [v1.0.5](https://github.com/globalcitizen/svglover/releases/tag/v1.0.5)
     released!
