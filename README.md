@@ -13,6 +13,10 @@ The latest code can always be found at
 
 ## News
 
+* 2019-03-26:
+    [v1.1.1](https://github.com/globalcitizen/svglover/releases/tag/v1.1.1) released! 
+  - Fix typo
+
 * 2019-03-19:
     [v1.1.0](https://github.com/globalcitizen/svglover/releases/tag/v1.1.0) released! Major work from @nasso, thanks!
   - Add support for the following elements: `<path>`, `<use>` and `<polyline>`.
