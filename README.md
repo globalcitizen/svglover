@@ -14,7 +14,7 @@ The latest code can always be found at
 ## Alternative libraries
 
 * [lvg](https://github.com/Bananicorn/lvg) is a relatively simple SVG renderer in pure lua (similar to svglover)
-* [tove2d](https://github.com/poke1024/tove2d) a multi-renderer love2d library
+* [tove2d](https://github.com/poke1024/tove2d) a multi-renderer love2d library, based on the [nanosvg](https://github.com/memononen/nanosvg) C library
 
 ## News
 
