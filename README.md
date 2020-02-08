@@ -1,6 +1,8 @@
 # svglover
 
-A library to import and display simple SVGs in [LÖVE](http://love2d.org/).
+A pure lua library to import and display simple SVGs in [LÖVE](http://love2d.org/).
+
+Tested up to love-11.3 (Mysterious Mysteries).
 
 Note that because it is specifically written for LÖVE, it is probably not useful
 for other [Lua](http://www.lua.org/) environments.
@@ -11,10 +13,10 @@ If you really want to squash your SVGs, try running them through
 The latest code can always be found at
 [Github](https://github.com/globalcitizen/svglover).
 
-## Alternative libraries
+## Alternative SVG libraries
 
-* [lvg](https://github.com/Bananicorn/lvg) is a relatively simple SVG renderer in pure lua (similar to svglover)
-* [tove2d](https://github.com/poke1024/tove2d) a multi-renderer love2d library, based on the [nanosvg](https://github.com/memononen/nanosvg) C library
+* [lvg](https://github.com/Bananicorn/lvg) is a relatively simple SVG renderer (in pure lua, like svglover)
+* [tove2d](https://github.com/poke1024/tove2d) a non pure lua love2d library for SVG support which includes multiple renderers and animation features, based on the unmaintained [nanosvg](https://github.com/memononen/nanosvg) C library
 
 ## News
 
